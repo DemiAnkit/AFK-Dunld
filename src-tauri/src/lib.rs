@@ -1,0 +1,88 @@
+// src-tauri/src/lib.rs
+
+pub mod core;
+pub mod network;
+pub mod database;
+pub mod commands;
+pub mod services;
+pub mod state;
+pub mod events;
+pub mod utils;
+
+use state::app_state::AppState;
+
+pub fn run() {
+    // Initialize logging
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "super_downloader=debug,info".into()),
+        )
+        .with_target(true)
+        .with_thread_ids(true)
+        .init();
+
+    tracing::info!("Starting Super Downloader...");
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {
+            tracing::info!("Another instance tried to start");
+        }))
+        .setup(|app| {
+            tracing::info!("Setting up application...");
+
+            // Initialize app state
+            let app_state = tauri::async_runtime::block_on(async {
+                AppState::new(app.handle().clone())
+                    .await
+                    .expect("Failed to initialize app state")
+            });
+
+            app.manage(app_state);
+
+            // Setup system tray
+            services::tray_service::setup_tray(app)?;
+
+            // Start clipboard monitor
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                services::clipboard_service::start_monitoring(handle).await;
+            });
+
+            tracing::info!("Application setup complete!");
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            // Download commands
+            commands::download_commands::add_download,
+            commands::download_commands::pause_download,
+            commands::download_commands::resume_download,
+            commands::download_commands::cancel_download,
+            commands::download_commands::remove_download,
+            commands::download_commands::retry_download,
+            commands::download_commands::get_all_downloads,
+            commands::download_commands::get_download_progress,
+            commands::download_commands::get_file_info,
+            commands::download_commands::add_batch_downloads,
+            commands::download_commands::pause_all,
+            commands::download_commands::resume_all,
+            commands::download_commands::cancel_all,
+            commands::download_commands::open_file,
+            commands::download_commands::open_file_location,
+            commands::download_commands::get_global_stats,
+            commands::download_commands::set_speed_limit,
+            commands::download_commands::get_queue_info,
+            commands::download_commands::set_max_concurrent,
+        ])
+        .run(tauri::generate_context!())
+        .expect("Error while running Super Downloader");
+}
