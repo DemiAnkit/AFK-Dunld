@@ -8,7 +8,6 @@ use futures_util::StreamExt;
 
 use crate::core::chunk_manager::Chunk;
 use crate::core::speed_limiter::SpeedLimiter;
-use crate::core::speed_tracker::SpeedTracker;
 use crate::core::retry::{RetryHandler, RetryConfig};
 use crate::network::http_client::HttpClient;
 use crate::utils::error::DownloadError;
@@ -22,22 +21,17 @@ pub struct SegmentResult {
     pub temp_path: PathBuf,
 }
 
-/// Progress callback type
-pub type SegmentProgressCallback = Arc<
-    dyn Fn(u32, u64) + Send + Sync
->;
-
 /// Downloads a single segment of a file
 pub struct SegmentDownloader {
     http_client: HttpClient,
-    speed_limiter: Arc<SpeedLimiter>,
+    speed_limiter: SpeedLimiter,
     retry_config: RetryConfig,
 }
 
 impl SegmentDownloader {
     pub fn new(
         http_client: HttpClient,
-        speed_limiter: Arc<SpeedLimiter>,
+        speed_limiter: SpeedLimiter,
         retry_config: RetryConfig,
     ) -> Self {
         Self {
@@ -54,8 +48,7 @@ impl SegmentDownloader {
         chunk: &Chunk,
         temp_path: &PathBuf,
         cancel_token: CancellationToken,
-        progress_callback: SegmentProgressCallback,
-    ) -> Result<SegmentResult, DownloadError> {
+    ) -> Result<(), DownloadError> {
         let retry_handler = RetryHandler::new(self.retry_config.clone());
         let url = url.to_string();
         let chunk = chunk.clone();
@@ -63,7 +56,6 @@ impl SegmentDownloader {
         let client = self.http_client.clone();
         let limiter = self.speed_limiter.clone();
         let cancel = cancel_token.clone();
-        let progress = progress_callback.clone();
 
         retry_handler
             .execute(
@@ -75,7 +67,6 @@ impl SegmentDownloader {
                     let client = client.clone();
                     let limiter = limiter.clone();
                     let cancel = cancel.clone();
-                    let progress = progress.clone();
 
                     async move {
                         Self::download_segment_inner(
@@ -85,7 +76,6 @@ impl SegmentDownloader {
                             &temp_path,
                             &limiter,
                             cancel,
-                            progress,
                         )
                         .await
                     }
@@ -102,8 +92,7 @@ impl SegmentDownloader {
         temp_path: &PathBuf,
         speed_limiter: &SpeedLimiter,
         cancel_token: CancellationToken,
-        progress_callback: SegmentProgressCallback,
-    ) -> Result<SegmentResult, DownloadError> {
+    ) -> Result<(), DownloadError> {
         // Check for existing partial download (resume)
         let existing_bytes = if temp_path.exists() {
             tokio::fs::metadata(temp_path)
@@ -123,12 +112,7 @@ impl SegmentDownloader {
                 chunk.id,
                 existing_bytes
             );
-            progress_callback(chunk.id, chunk.size());
-            return Ok(SegmentResult {
-                segment_id: chunk.id,
-                bytes_downloaded: chunk.size(),
-                temp_path: temp_path.clone(),
-            });
+            return Ok(());
         }
 
         tracing::info!(
@@ -186,9 +170,6 @@ impl SegmentDownloader {
                                 ))?;
 
                             total_written += data.len() as u64;
-
-                            // Report progress
-                            progress_callback(chunk.id, total_written);
                         }
                         Some(Err(e)) => {
                             // Flush what we have so far (for resume)
@@ -220,10 +201,6 @@ impl SegmentDownloader {
             total_written
         );
 
-        Ok(SegmentResult {
-            segment_id: chunk.id,
-            bytes_downloaded: total_written,
-            temp_path: temp_path.clone(),
-        })
+        Ok(())
     }
 }

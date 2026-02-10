@@ -24,6 +24,17 @@ impl ChecksumAlgorithm {
     }
 }
 
+impl std::fmt::Display for ChecksumAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ChecksumAlgorithm::Md5 => "md5",
+            ChecksumAlgorithm::Sha256 => "sha256",
+            ChecksumAlgorithm::Crc32 => "crc32",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 pub struct ChecksumVerifier;
 
 impl ChecksumVerifier {

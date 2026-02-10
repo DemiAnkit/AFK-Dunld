@@ -1,12 +1,12 @@
 // src/components/downloads/DownloadItem.tsx
 import { 
     Pause, Play, X, Trash2, RotateCcw, 
-    FolderOpen, File, MoreVertical, CheckCircle2,
+    FolderOpen, CheckCircle2,
     AlertCircle, Clock, Loader2
   } from "lucide-react";
   import { useDownloadStore, Download } from "../../stores/downloadStore";
   import { formatBytes, formatSpeed, formatEta } from "../../utils/format";
-  import { useState } from "react";
+  import { invoke } from "@tauri-apps/api/core";
   
   interface DownloadItemProps {
     download: Download;
@@ -17,13 +17,13 @@ import {
       pauseDownload, resumeDownload, cancelDownload, 
       removeDownload, retryDownload 
     } = useDownloadStore();
-    const [showMenu, setShowMenu] = useState(false);
   
     const progress = download.total_bytes
       ? (download.downloaded_bytes / download.total_bytes) * 100
       : 0;
   
     const statusIcon = {
+      Pending: <Clock className="w-4 h-4 text-gray-400" />,
       Queued: <Clock className="w-4 h-4 text-yellow-400" />,
       Downloading: <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />,
       Paused: <Pause className="w-4 h-4 text-orange-400" />,
@@ -35,6 +35,7 @@ import {
     }[download.status];
   
     const statusColor = {
+      Pending: "bg-gray-500",
       Queued: "bg-yellow-500",
       Downloading: "bg-blue-500",
       Paused: "bg-orange-500",
@@ -144,7 +145,7 @@ import {
           {download.status === "Completed" && (
             <button
               onClick={() => invoke("open_folder", { 
-                path: download.save_path 
+                path: download.file_path 
               })}
               className="p-1.5 hover:bg-gray-700 rounded-md transition-colors"
               title="Open Folder"
@@ -154,7 +155,7 @@ import {
           )}
   
           <button
-            onClick={() => removeDownload(download.id, false)}
+            onClick={() => removeDownload(download.id)}
             className="p-1.5 hover:bg-gray-700 rounded-md transition-colors 
                        opacity-0 group-hover:opacity-100"
             title="Remove"

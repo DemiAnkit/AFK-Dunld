@@ -44,7 +44,7 @@ interface DownloadState {
   retryDownload: (id: string) => Promise<void>;
 }
 
-export const useDownloadStore = create<DownloadState>((set, get) => ({
+export const useDownloadStore = create<DownloadState>((set) => ({
   downloads: [],
 
   fetchDownloads: async () => {

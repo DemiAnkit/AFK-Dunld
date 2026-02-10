@@ -3,9 +3,7 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import { 
   Palette, 
   Download, 
-  Globe, 
   Sliders,
-  Folder,
   Bell
 } from "lucide-react";
 

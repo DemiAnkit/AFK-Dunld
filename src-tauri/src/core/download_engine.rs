@@ -1,26 +1,22 @@
 use futures_util::StreamExt;
-use reqwest::Client;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
-use uuid::Uuid;
 
-use crate::core::checksum::ChecksumVerifier;
+use crate::core::checksum::{ChecksumVerifier, ChecksumAlgorithm};
 use crate::core::chunk_manager::{Chunk, ChunkManager};
 use crate::core::download_task::*;
-use crate::core::resume_manager::{ResumeManager, ResumeState};
-use crate::core::retry::{with_retry, RetryConfig};
+use crate::core::resume_manager::{ResumeManager, ResumeData};
+use crate::core::retry::{RetryHandler, RetryConfig};
 use crate::core::segment_downloader::SegmentDownloader;
 use crate::core::speed_limiter::SpeedLimiter;
 use crate::network::http_client::HttpClient;
 use crate::network::url_parser::UrlParser;
 use crate::utils::constants::*;
 use crate::utils::error::DownloadError;
-use crate::utils::format;
 
 /// Main download engine - orchestrates all download operations
 pub struct DownloadEngine {
@@ -37,7 +33,7 @@ pub struct DownloadEngine {
 impl DownloadEngine {
     /// Create a new download engine
     pub fn new(
-        proxy: Option<&crate::network::http_client::ProxyConfig>,
+        proxy: Option<&crate::network::proxy_manager::ProxyConfig>,
         speed_limit: Option<u64>,
         download_dir: Option<PathBuf>,
     ) -> Result<Self, DownloadError> {
@@ -58,7 +54,7 @@ impl DownloadEngine {
         // Ensure download directory exists
         std::fs::create_dir_all(&default_download_dir)
             .map_err(|e| {
-                DownloadError::FileSystem(format!(
+                DownloadError::FileError(format!(
                     "Cannot create download dir: {}",
                     e
                 ))
@@ -92,8 +88,18 @@ impl DownloadEngine {
         &self,
         url: &str,
     ) -> Result<FileInfo, DownloadError> {
-        UrlParser::validate(url)?;
-        self.http_client.get_file_info(url).await
+        // Parse and validate URL
+        let _ = UrlParser::parse(url)?;
+        
+        // Get file info from HTTP client
+        let info = self.http_client.get_file_info(url).await?;
+        
+        Ok(FileInfo {
+            file_name: info.file_name,
+            total_size: info.total_size,
+            content_type: info.content_type,
+            supports_range: info.supports_range,
+        })
     }
 
     /// Create a new download task from a request
@@ -101,8 +107,8 @@ impl DownloadEngine {
         &self,
         request: &AddDownloadRequest,
     ) -> Result<DownloadTask, DownloadError> {
-        // Validate URL
-        UrlParser::validate(&request.url)?;
+        // Parse URL
+        let parsed = UrlParser::parse(&request.url)?;
 
         // Fetch file info from server
         let file_info =
@@ -117,15 +123,14 @@ impl DownloadEngine {
                 self.default_download_dir.clone()
             });
 
-        // Determine file name
+        // Determine file name: explicit file_name override, otherwise parsed filename
         let file_name = request
             .file_name
             .clone()
-            .unwrap_or(file_info.file_name.clone());
+            .unwrap_or(parsed.filename);
 
         // Generate unique filename if needed
-        let unique_name =
-            UrlParser::unique_filename(&save_dir, &file_name);
+        let unique_name = self.unique_filename(&save_dir, &file_name);
         let save_path = save_dir.join(&unique_name);
 
         // Determine number of segments
@@ -135,21 +140,20 @@ impl DownloadEngine {
             .min(MAX_SEGMENTS);
 
         let mut task =
-            DownloadTask::new(request.url.clone(), save_path, unique_name);
+            DownloadTask::new(request.url.clone(), unique_name, save_path, segments);
 
         task.total_size = file_info.total_size;
         task.supports_range = file_info.supports_range;
         task.content_type = file_info.content_type;
         task.etag = file_info.etag;
-        task.segments = segments;
-        task.max_retries =
-            request.max_retries.unwrap_or(DEFAULT_MAX_RETRIES);
-        task.expected_checksum =
-            request.expected_checksum.clone();
-        task.checksum_type = request.checksum_type.clone();
-        task.speed_limit = request.speed_limit;
-        task.category = request.category.clone();
-        task.priority = request.priority.unwrap_or(0);
+        task.retry_count = request
+            .max_retries
+            .unwrap_or(DEFAULT_MAX_RETRIES) as u32;
+        task.expected_checksum = request.expected_checksum.clone();
+        task.checksum_algorithm = request
+            .checksum_type
+            .as_ref()
+            .and_then(|s| ChecksumAlgorithm::from_str(s));
 
         info!(
             "Created download task: {} -> {:?} ({} segments, size: {})",
@@ -157,7 +161,7 @@ impl DownloadEngine {
             task.save_path,
             task.segments,
             task.total_size
-                .map(|s| format::format_bytes(s))
+                .map(|s| format_bytes(s))
                 .unwrap_or_else(|| "unknown".to_string())
         );
 
@@ -181,11 +185,12 @@ impl DownloadEngine {
         progress_tx: flume::Sender<DownloadProgress>,
     ) -> Result<(), DownloadError> {
         task.status = DownloadStatus::Connecting;
-        Self::emit_progress(task, &[], &progress_tx);
+        Self::emit_progress(task, &progress_tx);
 
         // Check for existing resume state
-        let resume_state =
-            ResumeManager::load_state(&task.save_path).await?;
+        let temp_dir = self.get_temp_dir(task);
+        let resume_data =
+            ResumeManager::load(&temp_dir).await?;
 
         // Refresh file info (check if file changed on server)
         let file_info = self
@@ -196,27 +201,6 @@ impl DownloadEngine {
         task.total_size = file_info.total_size;
         task.supports_range = file_info.supports_range;
         task.etag = file_info.etag.clone();
-
-        // Validate resume state if exists
-        if let Some(ref state) = resume_state {
-            if !ResumeManager::validate_etag(
-                &state.etag,
-                &file_info.etag,
-            ) {
-                warn!(
-                    "ETag changed, cannot resume. Starting fresh."
-                );
-                ResumeManager::delete_state(&task.save_path)
-                    .await?;
-                return self
-                    .start_fresh_download(
-                        task,
-                        cancel_token,
-                        progress_tx,
-                    )
-                    .await;
-            }
-        }
 
         // Determine download strategy
         let use_multi_segment = self.should_use_multi_segment(task);
@@ -236,7 +220,7 @@ impl DownloadEngine {
         let result = if use_multi_segment {
             self.multi_segment_download(
                 task,
-                resume_state,
+                resume_data,
                 cancel_token.clone(),
                 progress_tx.clone(),
             )
@@ -244,7 +228,7 @@ impl DownloadEngine {
         } else {
             self.single_segment_download(
                 task,
-                resume_state,
+                resume_data,
                 cancel_token.clone(),
                 progress_tx.clone(),
             )
@@ -254,12 +238,12 @@ impl DownloadEngine {
         match &result {
             Ok(()) => {
                 // Verify checksum if provided
-                if let (Some(expected), Some(checksum_type)) = (
+                if let (Some(expected), Some(algorithm)) = (
                     &task.expected_checksum,
-                    &task.checksum_type,
+                    &task.checksum_algorithm,
                 ) {
                     task.status = DownloadStatus::Verifying;
-                    Self::emit_progress(task, &[], &progress_tx);
+                    Self::emit_progress(task, &progress_tx);
 
                     info!(
                         "Verifying checksum for '{}'...",
@@ -269,7 +253,7 @@ impl DownloadEngine {
                     match ChecksumVerifier::verify(
                         &task.save_path,
                         expected,
-                        checksum_type,
+                        algorithm,
                     )
                     .await
                     {
@@ -287,7 +271,6 @@ impl DownloadEngine {
                             );
                             Self::emit_progress(
                                 task,
-                                &[],
                                 &progress_tx,
                             );
                             return Err(
@@ -301,27 +284,26 @@ impl DownloadEngine {
                 }
 
                 // Clean up resume state
-                ResumeManager::delete_state(&task.save_path)
-                    .await?;
+                let _ = ResumeManager::delete(&temp_dir).await;
 
                 task.status = DownloadStatus::Completed;
                 task.completed_at =
                     Some(chrono::Local::now().naive_local());
                 task.speed = 0.0;
-                Self::emit_progress(task, &[], &progress_tx);
+                Self::emit_progress(task, &progress_tx);
 
                 info!(
                     "✅ Download completed: '{}' ({})",
                     task.file_name,
                     task.total_size
-                        .map(|s| format::format_bytes(s))
+                        .map(|s| format_bytes(s))
                         .unwrap_or_default()
                 );
             }
             Err(DownloadError::Cancelled) => {
                 task.status = DownloadStatus::Cancelled;
                 task.speed = 0.0;
-                Self::emit_progress(task, &[], &progress_tx);
+                Self::emit_progress(task, &progress_tx);
                 info!(
                     "Download cancelled: '{}'",
                     task.file_name
@@ -330,14 +312,14 @@ impl DownloadEngine {
             Err(DownloadError::Paused) => {
                 task.status = DownloadStatus::Paused;
                 task.speed = 0.0;
-                Self::emit_progress(task, &[], &progress_tx);
+                Self::emit_progress(task, &progress_tx);
                 info!("Download paused: '{}'", task.file_name);
             }
             Err(e) => {
                 task.status = DownloadStatus::Failed;
                 task.error_message = Some(e.to_string());
                 task.speed = 0.0;
-                Self::emit_progress(task, &[], &progress_tx);
+                Self::emit_progress(task, &progress_tx);
                 error!(
                     "❌ Download failed: '{}': {}",
                     task.file_name, e
@@ -386,51 +368,31 @@ impl DownloadEngine {
     async fn single_segment_download(
         &self,
         task: &mut DownloadTask,
-        resume_state: Option<ResumeState>,
+        _resume_data: Option<ResumeData>,
         cancel_token: CancellationToken,
         progress_tx: flume::Sender<DownloadProgress>,
     ) -> Result<(), DownloadError> {
-        let client = self.http_client.client_clone();
-        let retry_config =
-            RetryConfig::new(task.max_retries);
-
-        // Determine starting position for resume
-        let start_pos = resume_state
-            .as_ref()
-            .map(|s| s.total_downloaded)
-            .unwrap_or(0);
-
-        task.downloaded_size = start_pos;
+        let client = self.http_client.clone();
+        let retry_handler = RetryHandler::new(RetryConfig::default());
 
         let url = task.url.clone();
         let save_path = task.save_path.clone();
-        let task_speed_limit = task.speed_limit;
-        let speed_limiter = if task_speed_limit.is_some() {
-            SpeedLimiter::new(task_speed_limit)
-        } else {
-            self.speed_limiter.clone()
-        };
 
-        // Use retry wrapper for the actual download
-        let download_result = with_retry(
-            &retry_config,
+        // Use retry handler for the actual download
+        let result = retry_handler.execute(
             &format!("single-segment download '{}'", task.file_name),
             || {
                 let client = client.clone();
                 let url = url.clone();
                 let save_path = save_path.clone();
                 let cancel = cancel_token.clone();
-                let limiter = speed_limiter.clone();
-                let start = start_pos;
 
                 async move {
                     Self::do_single_download(
                         client,
                         &url,
                         &save_path,
-                        start,
                         cancel,
-                        limiter,
                     )
                     .await
                 }
@@ -438,41 +400,12 @@ impl DownloadEngine {
         )
         .await;
 
-        match download_result {
-            Ok((total_bytes, _)) => {
+        match result {
+            Ok(total_bytes) => {
                 task.downloaded_size = total_bytes;
                 Ok(())
             }
             Err(e) => {
-                // Save resume state on failure
-                if task.supports_range
-                    && task.downloaded_size > 0
-                {
-                    let state = ResumeState {
-                        task_id: task.id,
-                        url: task.url.clone(),
-                        total_size: task.total_size,
-                        etag: task.etag.clone(),
-                        last_modified: None,
-                        chunks: vec![Chunk {
-                            id: 0,
-                            start: 0,
-                            end: task
-                                .total_size
-                                .unwrap_or(0)
-                                .saturating_sub(1),
-                            downloaded: task.downloaded_size,
-                        }],
-                        total_downloaded: task.downloaded_size,
-                        saved_at: chrono::Local::now()
-                            .naive_local(),
-                    };
-                    let _ = ResumeManager::save_state(
-                        &task.save_path,
-                        &state,
-                    )
-                    .await;
-                }
                 Err(e)
             }
         }
@@ -480,70 +413,34 @@ impl DownloadEngine {
 
     /// Perform the actual single-segment HTTP download
     async fn do_single_download(
-        client: Client,
+        client: HttpClient,
         url: &str,
         save_path: &PathBuf,
-        start_pos: u64,
         cancel_token: CancellationToken,
-        speed_limiter: SpeedLimiter,
-    ) -> Result<(u64, f64), DownloadError> {
-        let mut request = client.get(url);
-
-        // Add Range header for resume
-        if start_pos > 0 {
-            request = request.header(
-                reqwest::header::RANGE,
-                format!("bytes={}-", start_pos),
-            );
-            info!("Resuming from byte {}", start_pos);
-        }
-
-        let response = request
-            .send()
-            .await
-            .map_err(|e| DownloadError::Network(e.to_string()))?;
+    ) -> Result<u64, DownloadError> {
+        let response = client.get(url).await
+            .map_err(|e| DownloadError::NetworkError(e.to_string()))?;
 
         let status = response.status();
-        if !status.is_success()
-            && status.as_u16() != 206
-        {
-            return Err(DownloadError::HttpStatus {
-                status: status.as_u16(),
-                message: format!(
-                    "Server returned {}",
-                    status
-                ),
+        if !status.is_success() {
+            return Err(DownloadError::ServerError { 
+                status: status.as_u16(), 
+                message: format!("Server returned {}", status)
             });
         }
 
         // Open file for writing
-        let mut file = if start_pos > 0 {
-            tokio::fs::OpenOptions::new()
-                .append(true)
-                .open(save_path)
-                .await
-                .map_err(|e| {
-                    DownloadError::FileSystem(format!(
-                        "Failed to open file for resume: {}",
-                        e
-                    ))
-                })?
-        } else {
-            tokio::fs::File::create(save_path)
-                .await
-                .map_err(|e| {
-                    DownloadError::FileSystem(format!(
-                        "Failed to create file: {}",
-                        e
-                    ))
-                })?
-        };
+        let mut file = tokio::fs::File::create(save_path)
+            .await
+            .map_err(|e| {
+                DownloadError::FileError(format!(
+                    "Failed to create file: {}",
+                    e
+                ))
+            })?;
 
         let mut stream = response.bytes_stream();
-        let mut total_bytes = start_pos;
-        let mut speed_bytes: u64 = 0;
-        let mut speed_timer = Instant::now();
-        let mut current_speed: f64 = 0.0;
+        let mut total_bytes: u64 = 0;
 
         loop {
             tokio::select! {
@@ -555,38 +452,21 @@ impl DownloadEngine {
                 chunk = stream.next() => {
                     match chunk {
                         Some(Ok(data)) => {
-                            speed_limiter
-                                .throttle(data.len())
-                                .await;
-
                             file.write_all(&data)
                                 .await
                                 .map_err(|e| {
-                                    DownloadError::FileSystem(
+                                    DownloadError::FileError(
                                         format!("Write error: {}", e)
                                     )
                                 })?;
 
                             total_bytes += data.len() as u64;
-                            speed_bytes += data.len() as u64;
-
-                            // Calculate speed
-                            let elapsed = speed_timer
-                                .elapsed()
-                                .as_secs_f64();
-                            if elapsed >= 0.5 {
-                                current_speed = speed_bytes
-                                    as f64
-                                    / elapsed;
-                                speed_bytes = 0;
-                                speed_timer = Instant::now();
-                            }
                         }
 
                         Some(Err(e)) => {
                             let _ = file.flush().await;
                             return Err(
-                                DownloadError::Network(
+                                DownloadError::NetworkError(
                                     e.to_string()
                                 )
                             );
@@ -599,13 +479,13 @@ impl DownloadEngine {
         }
 
         file.flush().await.map_err(|e| {
-            DownloadError::FileSystem(format!(
+            DownloadError::FileError(format!(
                 "Flush error: {}",
                 e
             ))
         })?;
 
-        Ok((total_bytes, current_speed))
+        Ok(total_bytes)
     }
 
     // ==========================================================
@@ -615,7 +495,7 @@ impl DownloadEngine {
     async fn multi_segment_download(
         &self,
         task: &mut DownloadTask,
-        resume_state: Option<ResumeState>,
+        _resume_data: Option<ResumeData>,
         cancel_token: CancellationToken,
         progress_tx: flume::Sender<DownloadProgress>,
     ) -> Result<(), DownloadError> {
@@ -626,69 +506,36 @@ impl DownloadEngine {
             ),
         )?;
 
-        // Create or restore chunks
-        let chunks = if let Some(ref state) = resume_state {
-            info!(
-                "Resuming multi-segment download with {} chunks",
-                state.chunks.len()
-            );
-            state.chunks.clone()
-        } else {
-            ChunkManager::split(total_size, task.segments)
-        };
+        // Create chunks
+        let chunks = ChunkManager::split(total_size, task.segments);
 
         let num_segments = chunks.len();
         info!(
             "Multi-segment download: {} segments for {} file",
             num_segments,
-            format::format_bytes(total_size)
+            format_bytes(total_size)
         );
 
         // Create temp directory for segments
-        let temp_dir = task
-            .save_path
-            .parent()
-            .unwrap_or(&self.default_download_dir)
-            .join(format!(".sd_{}", task.id));
+        let temp_dir = self.get_temp_dir(task);
 
         tokio::fs::create_dir_all(&temp_dir)
             .await
             .map_err(|e| {
-                DownloadError::FileSystem(format!(
+                DownloadError::FileError(format!(
                     "Failed to create temp dir: {}",
                     e
                 ))
             })?;
 
-        // Shared progress tracking
-        let segment_progress = Arc::new(RwLock::new(
-            chunks.iter().map(|c| c.downloaded).collect::<Vec<u64>>(),
-        ));
-
-        // Speed limiter for this download
-        let speed_limiter = if task.speed_limit.is_some() {
-            SpeedLimiter::new(task.speed_limit)
-        } else {
-            self.speed_limiter.clone()
-        };
-
-        let client = self.http_client.client_clone();
-
         // Spawn download tasks for each segment
         let mut handles = Vec::with_capacity(num_segments);
 
         for chunk in &chunks {
-            if chunk.is_complete() {
-                info!(
-                    "Segment {} already complete, skipping",
-                    chunk.id
-                );
-                continue;
-            }
-
             let segment_dl = SegmentDownloader::new(
-                client.clone(),
-                speed_limiter.clone(),
+                self.http_client.clone(),
+                self.speed_limiter.clone(),
+                RetryConfig::default(),
             );
 
             let url = task.url.clone();
@@ -696,144 +543,19 @@ impl DownloadEngine {
             let temp_path =
                 temp_dir.join(format!("segment_{}", chunk.id));
             let cancel = cancel_token.clone();
-            let progress = segment_progress.clone();
-            let retry_config =
-                RetryConfig::new(task.max_retries);
-            let segment_id = chunk.id;
 
             let handle = tokio::spawn(async move {
-                with_retry(
-                    &retry_config,
-                    &format!("segment {}", segment_id),
-                    || {
-                        let dl = SegmentDownloader::new(
-                            client.clone(),
-                            speed_limiter.clone(),
-                        );
-                        let url = url.clone();
-                        let chunk = chunk_clone.clone();
-                        let path = temp_path.clone();
-                        let cancel = cancel.clone();
-                        let progress = progress.clone();
-
-                        async move {
-                            dl.download_segment(
-                                &url,
-                                &chunk,
-                                &path,
-                                cancel,
-                                progress,
-                            )
-                            .await
-                        }
-                    },
+                segment_dl.download_segment(
+                    &url,
+                    &chunk_clone,
+                    &temp_path,
+                    cancel,
                 )
                 .await
             });
 
             handles.push((chunk.id, handle));
         }
-
-        // Progress reporter task
-        let progress_data = segment_progress.clone();
-        let progress_tx_clone = progress_tx.clone();
-        let task_id = task.id;
-        let task_file_name = task.file_name.clone();
-        let chunks_for_progress = chunks.clone();
-        let cancel_for_progress = cancel_token.clone();
-
-        let progress_handle = tokio::spawn(async move {
-            let mut last_total: u64 = 0;
-            let mut speed_timer = Instant::now();
-
-            loop {
-                tokio::select! {
-                    _ = tokio::time::sleep(Duration::from_millis(
-                        PROGRESS_UPDATE_INTERVAL_MS
-                    )) => {}
-                    _ = cancel_for_progress.cancelled() => break,
-                }
-
-                let segment_data =
-                    progress_data.read().await.clone();
-
-                let total_downloaded: u64 =
-                    segment_data.iter().sum();
-
-                // Calculate speed
-                let elapsed =
-                    speed_timer.elapsed().as_secs_f64();
-                let speed = if elapsed > 0.0 {
-                    (total_downloaded - last_total) as f64
-                        / elapsed
-                } else {
-                    0.0
-                };
-
-                // Calculate ETA
-                let remaining =
-                    total_size.saturating_sub(total_downloaded);
-                let eta = if speed > 0.0 {
-                    Some((remaining as f64 / speed) as u64)
-                } else {
-                    None
-                };
-
-                let percent = (total_downloaded as f64
-                    / total_size as f64)
-                    * 100.0;
-
-                // Build segment progress
-                let seg_progress: Vec<SegmentProgress> =
-                    chunks_for_progress
-                        .iter()
-                        .enumerate()
-                        .map(|(i, chunk)| SegmentProgress {
-                            segment_id: chunk.id,
-                            start: chunk.start,
-                            end: chunk.end,
-                            downloaded: segment_data
-                                .get(i)
-                                .copied()
-                                .unwrap_or(0),
-                            total: chunk.size(),
-                            speed: 0.0,
-                            status: if segment_data
-                                .get(i)
-                                .copied()
-                                .unwrap_or(0)
-                                >= chunk.size()
-                            {
-                                SegmentStatus::Completed
-                            } else if segment_data
-                                .get(i)
-                                .copied()
-                                .unwrap_or(0)
-                                > 0
-                            {
-                                SegmentStatus::Downloading
-                            } else {
-                                SegmentStatus::Pending
-                            },
-                        })
-                        .collect();
-
-                let _ =
-                    progress_tx_clone.send(DownloadProgress {
-                        id: task_id,
-                        downloaded_size: total_downloaded,
-                        total_size: Some(total_size),
-                        speed,
-                        eta,
-                        status: DownloadStatus::Downloading,
-                        percent,
-                        segment_progress: seg_progress,
-                    });
-
-                last_total = total_downloaded;
-                speed_timer = Instant::now();
-            }
-        });
 
         // Wait for all segments to complete
         let mut segment_errors: Vec<(u32, DownloadError)> =
@@ -867,53 +589,9 @@ impl DownloadEngine {
             }
         }
 
-        // Stop progress reporter
-        cancel_token.cancel();
-        let _ = progress_handle.await;
-
         // Check for errors
         if !segment_errors.is_empty() {
-            // Save resume state for partial downloads
-            let current_progress =
-                segment_progress.read().await.clone();
-
-            let resume_chunks: Vec<Chunk> = chunks
-                .iter()
-                .enumerate()
-                .map(|(i, c)| {
-                    let mut chunk = c.clone();
-                    chunk.downloaded =
-                        current_progress
-                            .get(i)
-                            .copied()
-                            .unwrap_or(0);
-                    chunk
-                })
-                .collect();
-
-            let total_downloaded: u64 =
-                current_progress.iter().sum();
-
-            let state = ResumeState {
-                task_id: task.id,
-                url: task.url.clone(),
-                total_size: task.total_size,
-                etag: task.etag.clone(),
-                last_modified: None,
-                chunks: resume_chunks,
-                total_downloaded,
-                saved_at: chrono::Local::now().naive_local(),
-            };
-
-            let _ = ResumeManager::save_state(
-                &task.save_path,
-                &state,
-            )
-            .await;
-
-            task.downloaded_size = total_downloaded;
-
-            // Return first error (check for cancellation first)
+            // Return first error
             for (_, error) in &segment_errors {
                 if matches!(error, DownloadError::Cancelled) {
                     return Err(DownloadError::Cancelled);
@@ -922,27 +600,15 @@ impl DownloadEngine {
 
             let (seg_id, error) =
                 segment_errors.into_iter().next().unwrap();
-            return Err(DownloadError::SegmentFailed {
-                segment_id: seg_id,
-                reason: error.to_string(),
+            return Err(DownloadError::SegmentFailed { 
+                segment_id: seg_id, 
+                message: error.to_string() 
             });
         }
 
         // All segments complete - merge files
         info!("All segments complete. Merging...");
         task.status = DownloadStatus::Merging;
-
-        let merge_progress = DownloadProgress {
-            id: task.id,
-            downloaded_size: total_size,
-            total_size: Some(total_size),
-            speed: 0.0,
-            eta: None,
-            status: DownloadStatus::Merging,
-            percent: 100.0,
-            segment_progress: vec![],
-        };
-        let _ = progress_tx.send(merge_progress);
 
         self.merge_segments(
             &temp_dir,
@@ -1045,6 +711,13 @@ impl DownloadEngine {
     //  HELPERS
     // ==========================================================
 
+    fn get_temp_dir(&self, task: &DownloadTask) -> PathBuf {
+        task.save_path
+            .parent()
+            .unwrap_or(&self.default_download_dir)
+            .join(format!(".sd_{}", task.id))
+    }
+
     /// Decide whether to use multi-segment download
     fn should_use_multi_segment(
         &self,
@@ -1074,10 +747,42 @@ impl DownloadEngine {
         true
     }
 
+    /// Generate a unique filename if file already exists
+    fn unique_filename(&self, dir: &PathBuf, filename: &str) -> String {
+        let path = dir.join(filename);
+        if !path.exists() {
+            return filename.to_string();
+        }
+
+        let path_buf = PathBuf::from(filename);
+        let stem = path_buf
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("download")
+            .to_string();
+        let ext = path_buf
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        for i in 1..1000 {
+            let new_name = if ext.is_empty() {
+                format!("{} ({})", stem, i)
+            } else {
+                format!("{} ({}).{}", stem, i, ext)
+            };
+            if !dir.join(&new_name).exists() {
+                return new_name;
+            }
+        }
+
+        filename.to_string()
+    }
+
     /// Emit a progress update
     fn emit_progress(
         task: &DownloadTask,
-        segment_progress: &[SegmentProgress],
         tx: &flume::Sender<DownloadProgress>,
     ) {
         let _ = tx.send(DownloadProgress {
@@ -1087,8 +792,37 @@ impl DownloadEngine {
             speed: task.speed,
             eta: task.eta,
             status: task.status.clone(),
-            percent: task.progress_percent(),
-            segment_progress: segment_progress.to_vec(),
+            percent: task.percent(),
+            error_message: task.error_message.clone(),
         });
     }
+}
+
+/// Format bytes to human readable string
+fn format_bytes(bytes: u64) -> String {
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+    if bytes == 0 {
+        return "0 B".to_string();
+    }
+    let exp = (bytes as f64).log(1024.0).min(4.0) as usize;
+    let value = bytes as f64 / 1024f64.powi(exp as i32);
+    format!("{:.2} {}", value, UNITS[exp])
+}
+
+/// Request to add a new download.
+///
+/// NOTE: This type is shared with the Tauri commands layer
+/// (`src-tauri/src/commands/download_commands.rs`). Keep the
+/// fields in sync with that struct.
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct AddDownloadRequest {
+    pub url: String,
+    pub save_path: Option<String>,
+    pub segments: Option<u8>,
+    pub max_retries: Option<u32>,
+    pub expected_checksum: Option<String>,
+    pub checksum_type: Option<String>,
+    pub file_name: Option<String>,
+    pub category: Option<String>,
+    pub priority: Option<u32>,
 }

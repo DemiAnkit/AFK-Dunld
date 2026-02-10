@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use uuid::Uuid;
 
 use crate::core::download_task::{
-    ChecksumType, DownloadStatus, DownloadTask,
+    DownloadStatus, DownloadTask,
 };
 use crate::database::models::DownloadRow;
 use crate::utils::error::DownloadError;
@@ -19,7 +19,7 @@ impl Database {
         app_data_dir: &PathBuf,
     ) -> Result<Self, DownloadError> {
         std::fs::create_dir_all(app_data_dir).map_err(|e| {
-            DownloadError::FileSystem(format!(
+            DownloadError::FileError(format!(
                 "Cannot create data dir: {}",
                 e
             ))
@@ -49,25 +49,26 @@ impl Database {
             CREATE TABLE IF NOT EXISTS downloads (
                 id TEXT PRIMARY KEY,
                 url TEXT NOT NULL,
+                final_url TEXT,
                 file_name TEXT NOT NULL,
                 save_path TEXT NOT NULL,
                 total_size INTEGER,
                 downloaded_size INTEGER NOT NULL DEFAULT 0,
                 status TEXT NOT NULL DEFAULT 'Queued',
-                segments INTEGER NOT NULL DEFAULT 8,
-                retries INTEGER NOT NULL DEFAULT 0,
-                max_retries INTEGER NOT NULL DEFAULT 3,
+                segments INTEGER NOT NULL DEFAULT 4,
                 supports_range BOOLEAN NOT NULL DEFAULT FALSE,
                 content_type TEXT,
                 etag TEXT,
                 expected_checksum TEXT,
-                checksum_type TEXT,
+                actual_checksum TEXT,
+                checksum_algorithm TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
                 error_message TEXT,
                 created_at TEXT NOT NULL,
                 completed_at TEXT,
-                priority INTEGER NOT NULL DEFAULT 0,
-                speed_limit INTEGER,
-                category TEXT
+                priority INTEGER NOT NULL DEFAULT 100,
+                category TEXT,
+                segment_progress TEXT
             );
 
             CREATE INDEX IF NOT EXISTS idx_downloads_status
@@ -95,49 +96,46 @@ impl Database {
         &self,
         task: &DownloadTask,
     ) -> Result<(), DownloadError> {
+        let segment_progress_json = serde_json::to_string(&task.segment_progress)
+            .unwrap_or_else(|_| "[]".to_string());
+
         sqlx::query(
             r#"
             INSERT INTO downloads (
-                id, url, file_name, save_path, total_size,
-                downloaded_size, status, segments, retries,
-                max_retries, supports_range, content_type,
-                etag, expected_checksum, checksum_type,
-                error_message, created_at, completed_at,
-                priority, speed_limit, category
+                id, url, final_url, file_name, save_path, total_size,
+                downloaded_size, status, segments, supports_range,
+                content_type, etag, expected_checksum, actual_checksum,
+                checksum_algorithm, retry_count, error_message, created_at,
+                completed_at, priority, category, segment_progress
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-                ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18,
-                ?19, ?20, ?21
+                ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19,
+                ?20, ?21, ?22
             )
             "#,
         )
         .bind(task.id.to_string())
         .bind(&task.url)
+        .bind(&task.final_url)
         .bind(&task.file_name)
         .bind(task.save_path.to_string_lossy().to_string())
         .bind(task.total_size.map(|s| s as i64))
         .bind(task.downloaded_size as i64)
-        .bind(task.status.to_string())
+        .bind(task.status.as_str())
         .bind(task.segments as i32)
-        .bind(task.retries as i32)
-        .bind(task.max_retries as i32)
         .bind(task.supports_range)
         .bind(&task.content_type)
         .bind(&task.etag)
         .bind(&task.expected_checksum)
-        .bind(
-            task.checksum_type
-                .as_ref()
-                .map(|c| format!("{:?}", c)),
-        )
+        .bind(&task.actual_checksum)
+        .bind(task.checksum_algorithm.as_ref().map(|a| format!("{:?}", a)))
+        .bind(task.retry_count as i32)
         .bind(&task.error_message)
         .bind(task.created_at.to_string())
-        .bind(
-            task.completed_at.as_ref().map(|c| c.to_string()),
-        )
+        .bind(task.completed_at.map(|c| c.to_string()))
         .bind(task.priority as i32)
-        .bind(task.speed_limit.map(|s| s as i64))
         .bind(&task.category)
+        .bind(segment_progress_json)
         .execute(&self.pool)
         .await
         .map_err(|e| {
@@ -155,24 +153,29 @@ impl Database {
         &self,
         task: &DownloadTask,
     ) -> Result<(), DownloadError> {
+        let segment_progress_json = serde_json::to_string(&task.segment_progress)
+            .unwrap_or_else(|_| "[]".to_string());
+
         sqlx::query(
             r#"
             UPDATE downloads SET
                 downloaded_size = ?1,
                 status = ?2,
-                retries = ?3,
+                retry_count = ?3,
                 error_message = ?4,
-                completed_at = ?5
-            WHERE id = ?6
+                completed_at = ?5,
+                actual_checksum = ?6,
+                segment_progress = ?7
+            WHERE id = ?8
             "#,
         )
         .bind(task.downloaded_size as i64)
-        .bind(task.status.to_string())
-        .bind(task.retries as i32)
+        .bind(task.status.as_str())
+        .bind(task.retry_count as i32)
         .bind(&task.error_message)
-        .bind(
-            task.completed_at.as_ref().map(|c| c.to_string()),
-        )
+        .bind(task.completed_at.map(|c| c.to_string()))
+        .bind(&task.actual_checksum)
+        .bind(segment_progress_json)
         .bind(task.id.to_string())
         .execute(&self.pool)
         .await
@@ -195,7 +198,7 @@ impl Database {
         sqlx::query(
             "UPDATE downloads SET status = ?1 WHERE id = ?2",
         )
-        .bind(status.to_string())
+        .bind(status.as_str())
         .bind(id.to_string())
         .execute(&self.pool)
         .await
@@ -280,22 +283,13 @@ impl Database {
             "Completed" => DownloadStatus::Completed,
             "Failed" => DownloadStatus::Failed,
             "Cancelled" => DownloadStatus::Cancelled,
-            "Retrying" => DownloadStatus::Retrying,
             _ => DownloadStatus::Queued,
         };
-
-        let checksum_type =
-            row.checksum_type.as_deref().map(|ct| {
-                match ct {
-                    "MD5" => ChecksumType::MD5,
-                    "SHA256" => ChecksumType::SHA256,
-                    _ => ChecksumType::SHA256,
-                }
-            });
 
         DownloadTask {
             id: Uuid::parse_str(&row.id).unwrap_or(Uuid::new_v4()),
             url: row.url,
+            final_url: row.final_url,
             file_name: row.file_name,
             save_path: PathBuf::from(row.save_path),
             total_size: row.total_size.map(|s| s as u64),
@@ -303,14 +297,15 @@ impl Database {
             status,
             speed: 0.0,
             eta: None,
-            segments: row.segments as u32,
-            retries: row.retries as u32,
-            max_retries: row.max_retries as u32,
+            segments: row.segments as u8,
             supports_range: row.supports_range,
             content_type: row.content_type,
             etag: row.etag,
             expected_checksum: row.expected_checksum,
-            checksum_type,
+            actual_checksum: row.actual_checksum,
+            checksum_algorithm: row.checksum_algorithm
+                .and_then(|s| crate::core::checksum::ChecksumAlgorithm::from_str(&s)),
+            retry_count: row.retry_count as u32,
             error_message: row.error_message,
             created_at: chrono::NaiveDateTime::parse_from_str(
                 &row.created_at,
@@ -325,8 +320,10 @@ impl Database {
                 .ok()
             }),
             priority: row.priority as u32,
-            speed_limit: row.speed_limit.map(|s| s as u64),
             category: row.category,
+            segment_progress: row.segment_progress
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default(),
         }
     }
 }
@@ -341,27 +338,29 @@ impl<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
         Ok(DownloadRow {
             id: row.try_get("id")?,
             url: row.try_get("url")?,
+            final_url: row.try_get("final_url")?,
             file_name: row.try_get("file_name")?,
             save_path: row.try_get("save_path")?,
             total_size: row.try_get("total_size")?,
             downloaded_size: row.try_get("downloaded_size")?,
             status: row.try_get("status")?,
             segments: row.try_get("segments")?,
-            retries: row.try_get("retries")?,
-            max_retries: row.try_get("max_retries")?,
             supports_range: row
                 .try_get("supports_range")?,
             content_type: row.try_get("content_type")?,
             etag: row.try_get("etag")?,
             expected_checksum: row
                 .try_get("expected_checksum")?,
-            checksum_type: row.try_get("checksum_type")?,
+            actual_checksum: row
+                .try_get("actual_checksum")?,
+            checksum_algorithm: row.try_get("checksum_algorithm")?,
+            retry_count: row.try_get("retry_count")?,
             error_message: row.try_get("error_message")?,
             created_at: row.try_get("created_at")?,
             completed_at: row.try_get("completed_at")?,
             priority: row.try_get("priority")?,
-            speed_limit: row.try_get("speed_limit")?,
             category: row.try_get("category")?,
+            segment_progress: row.try_get("segment_progress")?,
         })
     }
 }

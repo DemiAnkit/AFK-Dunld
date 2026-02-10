@@ -1,8 +1,8 @@
 // src-tauri/src/core/download_task.rs
 
-use std::path::PathBuf;
 use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use uuid::Uuid;
 
 /// Status of a download
@@ -31,17 +31,11 @@ impl DownloadStatus {
     }
 
     pub fn is_resumable(&self) -> bool {
-        matches!(
-            self,
-            DownloadStatus::Paused | DownloadStatus::Failed
-        )
+        matches!(self, DownloadStatus::Paused | DownloadStatus::Failed)
     }
 
     pub fn is_terminal(&self) -> bool {
-        matches!(
-            self,
-            DownloadStatus::Completed | DownloadStatus::Cancelled
-        )
+        matches!(self, DownloadStatus::Completed | DownloadStatus::Cancelled)
     }
 
     pub fn as_str(&self) -> &str {
@@ -117,7 +111,7 @@ pub struct DownloadTask {
     pub actual_checksum: Option<String>,
 
     /// Checksum algorithm (md5, sha256, etc.)
-    pub checksum_algorithm: Option<String>,
+    pub checksum_algorithm: Option<crate::core::checksum::ChecksumAlgorithm>,
 
     /// Number of retry attempts
     pub retry_count: u32,
@@ -174,14 +168,34 @@ pub struct ProgressEvent {
     pub percent: f64,
 }
 
+/// Download progress information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadProgress {
+    pub id: Uuid,
+    pub downloaded_size: u64,
+    pub total_size: Option<u64>,
+    pub speed: f64,
+    pub eta: Option<u64>,
+    pub status: DownloadStatus,
+    pub percent: f64,
+    pub error_message: Option<String>,
+}
+
+/// File information from URL
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfo {
+    pub file_name: String,
+    pub total_size: Option<u64>,
+    pub content_type: Option<String>,
+    pub supports_range: bool,
+}
+
+/// Checksum type (alias for ChecksumAlgorithm)
+pub type ChecksumType = crate::core::checksum::ChecksumAlgorithm;
+
 impl DownloadTask {
     /// Create a new download task
-    pub fn new(
-        url: String,
-        file_name: String,
-        save_path: PathBuf,
-        segments: u8,
-    ) -> Self {
+    pub fn new(url: String, file_name: String, save_path: PathBuf, segments: u8) -> Self {
         Self {
             id: Uuid::new_v4(),
             url,
@@ -213,9 +227,7 @@ impl DownloadTask {
     /// Calculate download percentage
     pub fn percent(&self) -> f64 {
         match self.total_size {
-            Some(total) if total > 0 => {
-                (self.downloaded_size as f64 / total as f64) * 100.0
-            }
+            Some(total) if total > 0 => (self.downloaded_size as f64 / total as f64) * 100.0,
             _ => 0.0,
         }
     }

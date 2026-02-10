@@ -5,6 +5,7 @@ use std::time::Duration;
 use crate::utils::constants::*;
 use crate::utils::error::DownloadError;
 use crate::network::url_parser::UrlParser;
+use crate::network::proxy_manager::ProxyConfig;
 
 /// Information about a remote file
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -28,30 +29,28 @@ pub struct HttpClient {
 impl HttpClient {
     /// Create a new HTTP client
     pub fn new(
-        proxy_url: Option<&str>,
-        connect_timeout: u64,
-        read_timeout: u64,
+        proxy_config: Option<&ProxyConfig>,
     ) -> Result<Self, DownloadError> {
         let mut builder = Client::builder()
             .user_agent(USER_AGENT)
-            .connect_timeout(Duration::from_secs(connect_timeout))
-            .timeout(Duration::from_secs(read_timeout))
+            .connect_timeout(Duration::from_secs(DEFAULT_CONNECT_TIMEOUT))
+            .timeout(Duration::from_secs(DEFAULT_READ_TIMEOUT))
             .pool_max_idle_per_host(10)
             .pool_idle_timeout(Duration::from_secs(90))
             .redirect(reqwest::redirect::Policy::limited(10))
-            .gzip(true)
-            .brotli(true)
-            .deflate(true);
+            .gzip(true);
 
         // Configure proxy
-        if let Some(proxy_str) = proxy_url {
-            if !proxy_str.is_empty() {
-                let proxy = reqwest::Proxy::all(proxy_str)
-                    .map_err(|e| DownloadError::NetworkError(
-                        format!("Invalid proxy: {}", e)
-                    ))?;
-                builder = builder.proxy(proxy);
-                tracing::info!("Using proxy: {}", proxy_str);
+        if let Some(config) = proxy_config {
+            if let Some(proxy_url) = &config.url {
+                if !proxy_url.is_empty() {
+                    let proxy = reqwest::Proxy::all(proxy_url)
+                        .map_err(|e| DownloadError::NetworkError(
+                            format!("Invalid proxy: {}", e)
+                        ))?;
+                    builder = builder.proxy(proxy);
+                    tracing::info!("Using proxy: {}", proxy_url);
+                }
             }
         }
 
@@ -237,6 +236,15 @@ impl HttpClient {
 
         Ok(response)
     }
+
+    /// Perform a simple GET request
+    pub async fn get(&self, url: &str) -> Result<Response, DownloadError> {
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| DownloadError::NetworkError(e.to_string()))
+    }
 }
 
 #[cfg(test)]
@@ -245,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_client_creation() {
-        let client = HttpClient::new(None, 30, 60);
+        let client = HttpClient::new(None);
         assert!(client.is_ok());
     }
 }

@@ -16,6 +16,9 @@ pub struct ActiveDownload {
     pub task: Arc<RwLock<DownloadTask>>,
 }
 
+/// Download handle type alias for backwards compatibility
+pub type DownloadHandle = ActiveDownload;
+
 /// Global application state managed by Tauri
 pub struct AppState {
     pub db: Database,
@@ -49,7 +52,7 @@ impl AppState {
         )?);
 
         let queue =
-            Arc::new(RwLock::new(QueueManager::new()));
+            Arc::new(RwLock::new(QueueManager::new(5)));
 
         Ok(Self {
             db,

@@ -29,7 +29,7 @@ interface SettingsState {
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       settings: defaultSettings,
 
       updateSettings: (newSettings: Partial<Settings>) => {

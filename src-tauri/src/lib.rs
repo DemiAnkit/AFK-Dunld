@@ -9,6 +9,7 @@ pub mod state;
 pub mod events;
 pub mod utils;
 
+use tauri::Manager;
 use state::app_state::AppState;
 
 pub fn run() {
@@ -40,9 +41,15 @@ pub fn run() {
         .setup(|app| {
             tracing::info!("Setting up application...");
 
+            // Get app data directory
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data directory");
+
             // Initialize app state
             let app_state = tauri::async_runtime::block_on(async {
-                AppState::new(app.handle().clone())
+                AppState::new(app_data_dir)
                     .await
                     .expect("Failed to initialize app state")
             });

@@ -10,6 +10,8 @@ pub struct ProxyConfig {
     pub port: u16,
     pub username: Option<String>,
     pub password: Option<String>,
+    #[serde(skip)]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +52,7 @@ impl Default for ProxyConfig {
             port: 8080,
             username: None,
             password: None,
+            url: None,
         }
     }
 }

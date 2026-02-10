@@ -8,14 +8,11 @@ mod commands;
 mod services;
 mod state;
 mod utils;
+mod events;
 
+use tauri::Manager;
 use state::app_state::AppState;
-use commands::{
-    download_commands,
-    settings_commands,
-    queue_commands,
-    system_commands,
-};
+use commands::download_commands;
 
 fn main() {
     tracing_subscriber::fmt()
@@ -34,8 +31,14 @@ fn main() {
         ))
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
         .setup(|app| {
+            // Get app data directory
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data directory");
+
             let app_state = tauri::async_runtime::block_on(async {
-                AppState::new(app.handle().clone()).await.expect("Failed to initialize app state")
+                AppState::new(app_data_dir).await.expect("Failed to initialize app state")
             });
 
             app.manage(app_state);
@@ -60,24 +63,18 @@ fn main() {
             download_commands::remove_download,
             download_commands::retry_download,
             download_commands::get_all_downloads,
-            download_commands::get_download_info,
+            download_commands::get_file_info,
             download_commands::add_batch_downloads,
-
-            // Queue commands
-            queue_commands::get_queue,
-            queue_commands::reorder_queue,
-            queue_commands::set_max_concurrent,
-
-            // Settings commands
-            settings_commands::get_settings,
-            settings_commands::update_settings,
-            settings_commands::get_default_download_path,
-
-            // System commands
-            system_commands::get_system_info,
-            system_commands::open_file,
-            system_commands::open_folder,
-            system_commands::get_speed_history,
+            download_commands::get_download_progress,
+            download_commands::pause_all,
+            download_commands::resume_all,
+            download_commands::cancel_all,
+            download_commands::open_file,
+            download_commands::open_file_location,
+            download_commands::get_global_stats,
+            download_commands::set_speed_limit,
+            download_commands::get_queue_info,
+            download_commands::set_max_concurrent,
         ])
         .run(tauri::generate_context!())
         .expect("error while running application");

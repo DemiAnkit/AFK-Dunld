@@ -1,6 +1,6 @@
 // src/components/downloads/DownloadList.tsx
 import { useEffect } from "react";
-import { useDownloadStore, Download, DownloadStatus } from "../../stores/downloadStore";
+import { useDownloadStore } from "../../stores/downloadStore";
 import { DownloadItem } from "./DownloadItem";
 import { motion, AnimatePresence } from "framer-motion";
 import { Download as DownloadIcon, Search } from "lucide-react";
