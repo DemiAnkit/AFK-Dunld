@@ -1,219 +1,278 @@
-AFK-Dunld
-this is AFK download which will support may be all platforms. It helps download every file.
+# AFK-Dunld
 
+A powerful cross-platform download manager built with Tauri, React, and Rust. Supports HTTP/HTTPS, FTP, and Torrent downloads with advanced features like pause/resume, speed limiting, clipboard monitoring, and browser integration.
 
+![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-# Tauri + Vue + TypeScript
+## Prerequisites
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Before you begin, ensure you have the following installed on your local machine:
 
-## Recommended IDE Setup
+### Required Software
 
-- [VS Code](https://code.visualstudio.com/) + [Vue - Official](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+1. **Node.js** (v18 or higher)
+   - Download from: https://nodejs.org
+   - Verify installation: `node --version`
 
+2. **Rust** (latest stable version)
+   - Install via rustup: https://rustup.rs
+   - Verify installation: `rustc --version`
 
-here is complete stack:
-📦 RUST + TAURI TECH STACK
+3. **Git**
+   - Download from: https://git-scm.com
+   - Verify installation: `git --version`
+
+### System Requirements
+
+- **Windows**: Windows 10 or later
+- **macOS**: macOS 10.13 or later
+- **Linux**: Ubuntu 18.04+ or equivalent
+
+## Installation
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/DemiAnkit/AFK-Dunld.git
+cd AFK-Dunld
+```
+
+### 2. Install Frontend Dependencies
+
+```bash
+npm install
+```
+
+This installs all required Node.js packages including:
+- React 18 + TypeScript
+- Tauri API and plugins
+- TailwindCSS for styling
+- Zustand for state management
+- React Query for data fetching
+- Framer Motion for animations
+- And more (see `package.json` for full list)
+
+### 3. Install Rust Dependencies
+
+Navigate to the Tauri backend directory and install Rust crates:
+
+```bash
+cd src-tauri
+cargo build
+```
+
+This will download and compile all Rust dependencies including:
+- Tauri 2.0 framework
+- Tokio (async runtime)
+- Reqwest (HTTP client)
+- SQLx (SQLite database)
+- Various Tauri plugins (dialog, fs, notification, etc.)
+
+### 4. Return to Root Directory
+
+```bash
+cd ..
+```
+
+## Development
+
+### Run in Development Mode
+
+Start the development server with hot reload:
+
+```bash
+npm run tauri dev
+```
+
+This command:
+1. Starts the Vite dev server for the frontend
+2. Compiles and runs the Rust backend
+3. Opens the Tauri application window
+4. Enables hot reload for both frontend and backend
+
+### Available Scripts
+
+- `npm run dev` - Start Vite dev server only (frontend only)
+- `npm run build` - Build production frontend
+- `npm run preview` - Preview production build
+- `npm run tauri dev` - Run full Tauri app in development mode
+- `npm run tauri build` - Build production Tauri app
+
+## Building for Production
+
+### Build Application
+
+```bash
+npm run tauri build
+```
+
+This creates platform-specific installers in `src-tauri/target/release/bundle/`:
+- **Windows**: `.msi` and `.exe` installers
+- **macOS**: `.dmg` and `.app` bundles
+- **Linux**: `.deb`, `.AppImage`, and `.rpm` packages
+
+### Build Only Frontend
+
+```bash
+npm run build
+```
+
+Output will be in the `dist/` directory.
+
+## Project Structure
+
+```
+AFK-Dunld/
 │
-├── 🦀 Backend: Rust
-│   ├── Tauri 2.0 (app framework)
-│   ├── Tokio (async runtime)
-│   ├── reqwest (HTTP/HTTPS client)
-│   ├── rust-ftp (FTP support)
-│   ├── librqbit (Torrent support)
-│   ├── SQLx (async SQLite database)
-│   ├── serde (serialization)
-│   ├── tokio-util (rate limiting)
-│   ├── notify-rust (notifications)
-│   ├── arboard (clipboard monitoring)
-│   ├── sha2 / md5 (checksum verification)
-│   └── tracing (logging)
+├── src/                          # Frontend (React + TypeScript)
+│   ├── main.tsx                  # React entry point
+│   ├── App.tsx                   # Root component
+│   ├── components/               # UI Components
+│   ├── hooks/                    # Custom React hooks
+│   ├── stores/                   # Zustand state stores
+│   ├── services/                 # API and service layer
+│   ├── types/                    # TypeScript type definitions
+│   ├── styles/                   # CSS and Tailwind styles
+│   └── assets/                   # Static assets (icons, images)
 │
-├── 🎨 Frontend: React + TypeScript
-│   ├── Vite (build tool)
-│   ├── TailwindCSS (styling)
-│   ├── Shadcn/UI (component library)
-│   ├── Zustand (state management)
-│   ├── React Query (data fetching)
-│   ├── Framer Motion (animations)
-│   └── Lucide React (icons)
+├── src-tauri/                    # Rust Backend
+│   ├── Cargo.toml                # Rust dependencies
+│   ├── tauri.conf.json           # Tauri configuration
+│   ├── icons/                    # Application icons
+│   └── src/                      # Rust source code
+│       ├── main.rs               # Application entry point
+│       └── lib.rs                # Library root
 │
-├── 💾 Database: SQLite (via SQLx)
-│
-├── 🌍 Browser Extension:
-│   ├── Chrome Extension (Manifest V3)
-│   ├── Firefox Add-on
-│   └── Native Messaging Host (Rust)
-│
-└── 📦 Packaging:
-    ├── .msi / .exe (Windows)
-    ├── .dmg / .app (macOS)
-    └── .deb / .AppImage / .rpm (Linux)
-
-
-📁 Complete Project Structure
-super-downloader/
-│
-├── src-tauri/                          # Rust Backend
-│   ├── Cargo.toml                      # Rust dependencies
-│   ├── tauri.conf.json                 # Tauri configuration
-│   ├── capabilities/                   # Tauri 2.0 permissions
-│   │   └── default.json
-│   ├── icons/                          # App icons
-│   │
-│   └── src/
-│       ├── main.rs                     # Entry point
-│       ├── lib.rs                      # Library root
-│       │
-│       ├── core/                       # Core download engine
-│       │   ├── mod.rs
-│       │   ├── download_engine.rs      # Main download orchestrator
-│       │   ├── chunk_manager.rs        # Multi-segment splitting
-│       │   ├── download_task.rs        # Single download task
-│       │   ├── resume_manager.rs       # Pause/Resume logic
-│       │   ├── speed_limiter.rs        # Bandwidth control
-│       │   ├── scheduler.rs            # Download scheduling
-│       │   ├── queue_manager.rs        # Download queue
-│       │   └── checksum.rs             # File integrity (MD5/SHA256)
-│       │
-│       ├── network/                    # Network layer
-│       │   ├── mod.rs
-│       │   ├── http_client.rs          # HTTP/HTTPS handler
-│       │   ├── ftp_client.rs           # FTP handler
-│       │   ├── torrent_client.rs       # Torrent handler
-│       │   ├── proxy_manager.rs        # Proxy support
-│       │   ├── url_parser.rs           # URL validation & info
-│       │   └── connection.rs           # Connection management
-│       │
-│       ├── database/                   # Data persistence
-│       │   ├── mod.rs
-│       │   ├── db.rs                   # Database connection
-│       │   ├── models.rs               # Data models
-│       │   ├── queries.rs              # SQL queries
-│       │   └── migrations/             # DB migrations
-│       │       └── 001_initial.sql
-│       │
-│       ├── commands/                   # Tauri IPC commands
-│       │   ├── mod.rs
-│       │   ├── download_commands.rs    # Download operations
-│       │   ├── settings_commands.rs    # Settings operations
-│       │   ├── queue_commands.rs       # Queue operations
-│       │   └── system_commands.rs      # System operations
-│       │
-│       ├── services/                   # Business logic
-│       │   ├── mod.rs
-│       │   ├── clipboard_service.rs    # Clipboard monitoring
-│       │   ├── notification_service.rs # System notifications
-│       │   ├── tray_service.rs         # System tray
-│       │   ├── config_service.rs       # App configuration
-│       │   └── browser_service.rs      # Browser integration
-│       │
-│       ├── state/                      # App state management
-│       │   ├── mod.rs
-│       │   └── app_state.rs            # Global app state
-│       │
-│       └── utils/                      # Utilities
-│           ├── mod.rs
-│           ├── file_utils.rs           # File operations
-│           ├── format_utils.rs         # Size/speed formatting
-│           ├── error.rs                # Error types
-│           └── constants.rs            # Constants
-│
-├── src/                                # Frontend (React + TS)
-│   ├── index.html
-│   ├── main.tsx                        # React entry point
-│   ├── App.tsx                         # Root component
-│   ├── vite-env.d.ts
-│   │
-│   ├── components/                     # UI Components
-│   │   ├── layout/
-│   │   │   ├── Sidebar.tsx
-│   │   │   ├── Header.tsx
-│   │   │   ├── MainContent.tsx
-│   │   │   └── StatusBar.tsx
-│   │   │
-│   │   ├── downloads/
-│   │   │   ├── DownloadList.tsx        # List of downloads
-│   │   │   ├── DownloadItem.tsx        # Single download row
-│   │   │   ├── DownloadProgress.tsx    # Progress bar
-│   │   │   ├── AddDownloadDialog.tsx   # New download modal
-│   │   │   ├── BatchDownloadDialog.tsx # Batch download modal
-│   │   │   └── DownloadDetails.tsx     # Download info panel
-│   │   │
-│   │   ├── settings/
-│   │   │   ├── SettingsPage.tsx        # Settings page
-│   │   │   ├── GeneralSettings.tsx     # General settings
-│   │   │   ├── NetworkSettings.tsx     # Network/proxy settings
-│   │   │   ├── DownloadSettings.tsx    # Download preferences
-│   │   │   └── ThemeSettings.tsx       # Theme selector
-│   │   │
-│   │   └── common/
-│   │       ├── Button.tsx
-│   │       ├── Modal.tsx
-│   │       ├── ProgressBar.tsx
-│   │       ├── SpeedGraph.tsx
-│   │       ├── ContextMenu.tsx
-│   │       └── Tooltip.tsx
-│   │
-│   ├── hooks/                          # Custom React hooks
-│   │   ├── useDownloads.ts
-│   │   ├── useSettings.ts
-│   │   ├── useClipboard.ts
-│   │   ├── useTauriEvents.ts
-│   │   └── useTheme.ts
-│   │
-│   ├── stores/                         # Zustand stores
-│   │   ├── downloadStore.ts
-│   │   ├── settingsStore.ts
-│   │   ├── queueStore.ts
-│   │   └── uiStore.ts
-│   │
-│   ├── services/                       # Frontend services
-│   │   ├── tauriApi.ts                 # Tauri IPC calls
-│   │   ├── downloadService.ts
-│   │   └── settingsService.ts
-│   │
-│   ├── types/                          # TypeScript types
-│   │   ├── download.ts
-│   │   ├── settings.ts
-│   │   └── common.ts
-│   │
-│   ├── styles/                         # Styles
-│   │   ├── globals.css
-│   │   ├── themes/
-│   │   │   ├── dark.css
-│   │   │   └── light.css
-│   │   └── animations.css
-│   │
-│   └── assets/                         # Static assets
-│       ├── icons/
-│       └── images/
-│
-├── browser-extension/                  # Browser Extension
-│   ├── chrome/
+├── browser-extension/            # Browser Extensions
+│   ├── chrome/                   # Chrome extension files
 │   │   ├── manifest.json
 │   │   ├── background.js
 │   │   ├── content.js
 │   │   ├── popup.html
-│   │   ├── popup.js
-│   │   └── icons/
-│   │
-│   └── firefox/
+│   │   └── popup.js
+│   └── firefox/                  # Firefox extension files
 │       ├── manifest.json
 │       ├── background.js
 │       ├── content.js
 │       ├── popup.html
-│       ├── popup.js
-│       └── icons/
+│       └── popup.js
 │
-├── migrations/                         # SQLite migrations
-│   └── 001_create_tables.sql
-│
-├── package.json                        # Node dependencies
-├── tsconfig.json                       # TypeScript config
-├── tailwind.config.js                  # Tailwind config
-├── vite.config.ts                      # Vite config
-├── postcss.config.js
-├── README.md
-└── LICENSE
+├── dist/                         # Built frontend files
+├── node_modules/                 # Node.js dependencies
+├── package.json                  # Node.js project configuration
+├── vite.config.ts                # Vite build configuration
+├── tailwind.config.js            # TailwindCSS configuration
+├── tsconfig.json                 # TypeScript configuration
+├── .gitignore                    # Git ignore rules
+├── install-code.md               # Quick install reference
+└── README.md                     # This file
+```
 
+## Tech Stack
+
+### Backend (Rust)
+- **Tauri 2.0** - Desktop application framework
+- **Tokio** - Async runtime
+- **Reqwest** - HTTP/HTTPS client with streaming support
+- **SQLx** - Async SQLite database
+- **Serde** - JSON serialization
+- **Tauri Plugins**: dialog, fs, notification, clipboard, shell
+
+### Frontend (React + TypeScript)
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **TailwindCSS** - Utility-first CSS framework
+- **Zustand** - State management
+- **TanStack Query** - Server state management
+- **Framer Motion** - Animations
+- **Lucide React** - Icon library
+- **Recharts** - Data visualization
+
+## Browser Extension
+
+The project includes browser extensions for Chrome and Firefox that integrate with the desktop application.
+
+### Installing Extensions
+
+**Chrome:**
+1. Open Chrome and navigate to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `browser-extension/chrome/` folder
+
+**Firefox:**
+1. Open Firefox and navigate to `about:debugging`
+2. Click "This Firefox"
+3. Click "Load Temporary Add-on"
+4. Select the `manifest.json` from `browser-extension/firefox/`
+
+## Configuration
+
+### Tauri Configuration
+
+Edit `src-tauri/tauri.conf.json` to modify:
+- Window size and behavior
+- Application metadata
+- Security policies
+- Bundle settings
+
+### Frontend Configuration
+
+- **Vite**: `vite.config.ts`
+- **TypeScript**: `tsconfig.json`
+- **Tailwind**: `tailwind.config.js`
+
+## Features
+
+- Multi-protocol support (HTTP/HTTPS, FTP, Torrent)
+- Pause and resume downloads
+- Download speed limiting
+- Clipboard monitoring for URLs
+- Browser integration via extensions
+- Download queue management
+- File integrity verification (MD5/SHA256)
+- System notifications
+- Dark/Light theme support
+- Cross-platform (Windows, macOS, Linux)
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Rust compilation errors**
+   - Ensure you have the latest Rust version: `rustup update`
+   - Install required build tools for your platform
+
+2. **Node modules issues**
+   - Delete `node_modules/` and `package-lock.json`
+   - Run `npm install` again
+
+3. **Tauri dev command fails**
+   - Ensure no other process is using port 1420
+   - Check that all prerequisites are installed
+
+### Getting Help
+
+- Check the [Tauri documentation](https://tauri.app)
+- Review [Rust documentation](https://doc.rust-lang.org)
+- Open an issue on GitHub
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with [Tauri](https://tauri.app)
+- Frontend powered by [React](https://reactjs.org)
+- Styled with [TailwindCSS](https://tailwindcss.com)
