@@ -5,8 +5,10 @@ import {
   Palette, 
   Download, 
   Sliders,
-  Bell
+  Bell,
+  Youtube
 } from "lucide-react";
+import { YouTubeSettings } from "./YouTubeSettings";
 
 export function SettingsPage() {
   const { settings, updateSettings, loadSettings } = useSettingsStore();
@@ -208,6 +210,11 @@ export function SettingsPage() {
               />
             </button>
           </div>
+        </section>
+
+        {/* YouTube Settings */}
+        <section className="bg-gray-900 rounded-lg p-6 border border-gray-800">
+          <YouTubeSettings />
         </section>
       </div>
     </div>

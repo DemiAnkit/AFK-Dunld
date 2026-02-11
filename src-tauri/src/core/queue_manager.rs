@@ -3,7 +3,6 @@
 use std::collections::VecDeque;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use crate::utils::constants::DEFAULT_MAX_CONCURRENT;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QueueInfo {

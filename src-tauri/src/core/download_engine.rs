@@ -1,8 +1,6 @@
 use futures_util::StreamExt;
 use std::path::PathBuf;
-use std::time::Instant;
 use tokio::io::AsyncWriteExt;
-use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
@@ -370,7 +368,7 @@ impl DownloadEngine {
         task: &mut DownloadTask,
         _resume_data: Option<ResumeData>,
         cancel_token: CancellationToken,
-        progress_tx: flume::Sender<DownloadProgress>,
+        _progress_tx: flume::Sender<DownloadProgress>,
     ) -> Result<(), DownloadError> {
         let client = self.http_client.clone();
         let retry_handler = RetryHandler::new(RetryConfig::default());
@@ -497,7 +495,7 @@ impl DownloadEngine {
         task: &mut DownloadTask,
         _resume_data: Option<ResumeData>,
         cancel_token: CancellationToken,
-        progress_tx: flume::Sender<DownloadProgress>,
+        _progress_tx: flume::Sender<DownloadProgress>,
     ) -> Result<(), DownloadError> {
         let total_size = task.total_size.ok_or(
             DownloadError::Unknown(

@@ -75,6 +75,11 @@ fn main() {
             download_commands::set_speed_limit,
             download_commands::get_queue_info,
             download_commands::set_max_concurrent,
+            // YouTube/video download commands
+            download_commands::check_ytdlp_installed,
+            download_commands::get_video_info,
+            download_commands::get_video_qualities,
+            download_commands::check_is_playlist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running application");

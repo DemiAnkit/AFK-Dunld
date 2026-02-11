@@ -3,6 +3,8 @@ import { X, Plus, Link, FolderOpen, Download, Youtube } from "lucide-react";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import toast from "react-hot-toast";
+import YouTubeDownloadDialog from "../dialogs/YouTubeDownloadDialog";
+import { useYouTubeDownload } from "../../hooks/useYouTubeDownload";
 
 interface AddDownloadDialogProps {
   onClose: () => void;
@@ -13,11 +15,10 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
   const [savePath, setSavePath] = useState("");
   const [fileName, setFileName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isYouTube, setIsYouTube] = useState(false);
-  const [youtubeQuality, setYoutubeQuality] = useState("best");
-  const [youtubeFormat, setYoutubeFormat] = useState<"video" | "audio">("video");
+  const [showYTDialog, setShowYTDialog] = useState(false);
   
   const { addDownload } = useDownloadStore();
+  const { isSupportedUrl } = useYouTubeDownload();
   
   // Draggable dialog state
   const [isDragging, setIsDragging] = useState(false);
@@ -25,11 +26,12 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Detect YouTube URLs
+  // Auto-detect supported video platforms and show YouTube dialog
   useEffect(() => {
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    setIsYouTube(youtubeRegex.test(url));
-  }, [url]);
+    if (url.trim() && isSupportedUrl(url)) {
+      setShowYTDialog(true);
+    }
+  }, [url, isSupportedUrl]);
 
   // Draggable handlers
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -74,6 +76,12 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
       toast.error("Please enter a URL");
       return;
     }
+
+    // Check if it's a supported video platform URL
+    if (isSupportedUrl(url)) {
+      setShowYTDialog(true);
+      return;
+    }
     
     setLoading(true);
     try {
@@ -81,14 +89,6 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
         savePath: savePath || undefined,
         fileName: fileName || undefined,
       };
-
-      if (isYouTube) {
-        downloadOptions.category = "youtube";
-        downloadOptions.youtubeFormat = youtubeFormat; // "video" or "audio"
-        downloadOptions.youtubeQuality = youtubeFormat === "video" ? youtubeQuality : "best";
-        
-        toast.success(`YouTube ${youtubeFormat === "audio" ? "Audio" : "Video"} download started!`);
-      }
       
       await addDownload(url.trim(), downloadOptions);
       
@@ -178,7 +178,7 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-300 flex items-center gap-2">
               <Link size={16} />
-              Download URL {isYouTube && <span className="flex items-center gap-1 text-xs text-red-400 bg-red-500/20 px-2 py-0.5 rounded"><Youtube size={12} /> YouTube</span>}
+              Download URL
             </label>
             <div className="flex gap-2">
               <div className="flex-1 relative">
@@ -205,71 +205,6 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
             </div>
           </div>
 
-          {/* YouTube Options */}
-          {isYouTube && (
-            <div className="space-y-4 p-4 bg-red-900/10 rounded-lg border border-red-500/30">
-              <div className="flex items-center gap-2 text-red-400">
-                <Youtube size={20} />
-                <span className="font-semibold">YouTube Download Options</span>
-              </div>
-              
-              {/* Format Type */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-300">
-                  Download Type
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setYoutubeFormat("video")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      youtubeFormat === "video"
-                        ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    📹 Video + Audio
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setYoutubeFormat("audio")}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      youtubeFormat === "audio"
-                        ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                    }`}
-                  >
-                    🎵 Audio Only (MP3)
-                  </button>
-                </div>
-              </div>
-
-              {/* Quality Selector - Only for Video */}
-              {youtubeFormat === "video" && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-300">
-                    Video Quality
-                  </label>
-                  <div className="grid grid-cols-5 gap-2">
-                    {["2160p", "1440p", "1080p", "720p", "best"].map((quality) => (
-                      <button
-                        key={quality}
-                        type="button"
-                        onClick={() => setYoutubeQuality(quality)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                          youtubeQuality === quality
-                            ? "bg-red-600 text-white shadow-lg shadow-red-500/30"
-                            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                        }`}
-                      >
-                        {quality}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* File Name */}
           <div className="space-y-2">
@@ -338,6 +273,26 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
           </button>
         </div>
       </div>
+
+      {/* YouTube Download Dialog */}
+      {showYTDialog && (
+        <YouTubeDownloadDialog
+          isOpen={showYTDialog}
+          onClose={() => {
+            setShowYTDialog(false);
+            setUrl(""); // Clear URL when closing
+          }}
+          url={url}
+          onDownloadStart={() => {
+            setShowYTDialog(false);
+            setUrl("");
+            setSavePath("");
+            setFileName("");
+            onClose(); // Close parent dialog too
+            toast.success("YouTube download started!");
+          }}
+        />
+      )}
     </div>
   );
 }

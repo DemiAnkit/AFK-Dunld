@@ -1,6 +1,6 @@
 // src-tauri/src/core/merge_manager.rs
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::utils::error::DownloadError;
 use crate::utils::constants::BUFFER_SIZE;

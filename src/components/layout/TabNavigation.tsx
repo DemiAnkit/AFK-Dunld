@@ -8,7 +8,8 @@ import {
   Film,
   Music,
   Plus,
-  Folder
+  Folder,
+  Youtube
 } from "lucide-react";
 import { useUIStore } from "../../stores/uiStore";
 
@@ -24,6 +25,7 @@ export function TabNavigation() {
     { path: "/missing", icon: AlertCircle, label: "Missing Files" },
     { path: "/downloading", icon: Play, label: "Active" },
     { path: "/completed", icon: CheckCircle, label: "Completed" },
+    { path: "/youtube", icon: Youtube, label: "YouTube" },
     { path: "/torrent", icon: Download, label: "Torrent" },
     { path: "/video", icon: Film, label: "Video" },
     { path: "/music", icon: Music, label: "Music" },

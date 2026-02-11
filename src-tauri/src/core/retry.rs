@@ -53,7 +53,6 @@ impl RetryHandler {
         Fut: std::future::Future<Output = Result<T, DownloadError>>,
     {
         let mut attempt = 0u32;
-        let mut last_error = DownloadError::Unknown("No attempts made".to_string());
 
         loop {
             attempt += 1;
@@ -86,8 +85,6 @@ impl RetryHandler {
                         return Err(e);
                     }
 
-                    last_error = e;
-
                     if attempt > self.config.max_retries {
                         tracing::error!(
                             "{}: max retries exceeded ({} attempts)",
@@ -104,7 +101,7 @@ impl RetryHandler {
                         "{}: attempt {} failed ({}), retrying in {}ms",
                         operation_name,
                         attempt,
-                        last_error,
+                        e,
                         delay.as_millis()
                     );
 

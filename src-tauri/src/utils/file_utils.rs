@@ -53,9 +53,8 @@ pub async fn get_available_space(path: &Path) -> std::io::Result<u64> {
 
     #[cfg(target_os = "windows")]
     {
-        use std::os::windows::fs::MetadataExt;
         // On Windows, use GetDiskFreeSpaceEx via std
-        let meta = fs::metadata(&check_path).await?;
+        let _meta = fs::metadata(&check_path).await?;
         // Simplified - in production use winapi
         Ok(u64::MAX) // placeholder
     }

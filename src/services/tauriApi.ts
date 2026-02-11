@@ -1,6 +1,7 @@
 // src/services/tauriApi.ts
 import { invoke } from '@tauri-apps/api/core';
 import type { Download, DownloadProgress, FileInfo, DownloadStats, QueueInfo } from '../types/download';
+import type { VideoInfo, QualityOption, YouTubeDownloadOptions } from '../types/youtube';
 
 export interface AddDownloadRequest {
   url: string;
@@ -110,5 +111,28 @@ export const downloadApi = {
 
   setMaxConcurrent: async (max: number): Promise<void> => {
     return await invoke('set_max_concurrent', { max });
+  },
+};
+
+// YouTube/Video download commands
+export const youtubeApi = {
+  checkYtDlpInstalled: async (): Promise<boolean> => {
+    return await invoke<boolean>('check_ytdlp_installed');
+  },
+
+  getVideoInfo: async (url: string): Promise<VideoInfo> => {
+    return await invoke<VideoInfo>('get_video_info', { url });
+  },
+
+  getVideoQualities: async (url: string): Promise<QualityOption[]> => {
+    return await invoke<QualityOption[]>('get_video_qualities', { url });
+  },
+
+  checkIsPlaylist: async (url: string): Promise<boolean> => {
+    return await invoke<boolean>('check_is_playlist', { url });
+  },
+
+  downloadVideo: async (options: YouTubeDownloadOptions): Promise<Download> => {
+    return await invoke<Download>('add_download', { request: options });
   },
 };

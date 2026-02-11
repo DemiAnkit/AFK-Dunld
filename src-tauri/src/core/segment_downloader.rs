@@ -1,7 +1,6 @@
 // src-tauri/src/core/segment_downloader.rs
 
 use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio_util::sync::CancellationToken;
 use futures_util::StreamExt;
@@ -11,7 +10,6 @@ use crate::core::speed_limiter::SpeedLimiter;
 use crate::core::retry::{RetryHandler, RetryConfig};
 use crate::network::http_client::HttpClient;
 use crate::utils::error::DownloadError;
-use crate::utils::constants::*;
 
 /// Result of a segment download
 #[derive(Debug)]
