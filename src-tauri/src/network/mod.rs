@@ -4,3 +4,4 @@ pub mod torrent_client;
 pub mod proxy_manager;
 pub mod url_parser;
 pub mod connection;
+pub mod youtube_downloader;

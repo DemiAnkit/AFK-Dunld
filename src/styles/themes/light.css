@@ -1,0 +1,103 @@
+/* Light Theme */
+
+[data-theme="light"] {
+  /* Background colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --bg-hover: #e5e7eb;
+  
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-disabled: #9ca3af;
+  
+  /* Border colors */
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  
+  /* Accent colors remain the same */
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-green: #10b981;
+  --accent-green-hover: #059669;
+  --accent-red: #ef4444;
+  --accent-red-hover: #dc2626;
+  --accent-yellow: #f59e0b;
+  --accent-yellow-hover: #d97706;
+  --accent-purple: #8b5cf6;
+  --accent-purple-hover: #7c3aed;
+  
+  /* Status colors */
+  --status-success: #10b981;
+  --status-error: #ef4444;
+  --status-warning: #f59e0b;
+  --status-info: #3b82f6;
+  
+  /* Progress colors */
+  --progress-bg: #e5e7eb;
+  --progress-fill: #3b82f6;
+  
+  /* Shadow */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Light theme overrides */
+[data-theme="light"] .bg-gray-950 {
+  background-color: #ffffff;
+}
+
+[data-theme="light"] .bg-gray-900 {
+  background-color: #f9fafb;
+}
+
+[data-theme="light"] .bg-gray-800 {
+  background-color: #f3f4f6;
+}
+
+[data-theme="light"] .bg-gray-700 {
+  background-color: #e5e7eb;
+}
+
+[data-theme="light"] .text-white {
+  color: #111827;
+}
+
+[data-theme="light"] .text-gray-300 {
+  color: #374151;
+}
+
+[data-theme="light"] .text-gray-400 {
+  color: #6b7280;
+}
+
+[data-theme="light"] .text-gray-500 {
+  color: #6b7280;
+}
+
+[data-theme="light"] .border-gray-800 {
+  border-color: #e5e7eb;
+}
+
+[data-theme="light"] .border-gray-700 {
+  border-color: #d1d5db;
+}
+
+[data-theme="light"] .hover\:bg-gray-700:hover {
+  background-color: #e5e7eb;
+}
+
+[data-theme="light"] .hover\:bg-gray-800:hover {
+  background-color: #f3f4f6;
+}

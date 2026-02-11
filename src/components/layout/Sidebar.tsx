@@ -14,15 +14,30 @@ import {
   Clock
 } from "lucide-react";
 import { useUIStore } from "../../stores/uiStore";
+import { useDownloadStore } from "../../stores/downloadStore";
+import { useMemo } from "react";
 
 export function Sidebar() {
   const { sidebarCollapsed } = useUIStore();
+  const { downloads } = useDownloadStore();
+
+  // Calculate dynamic counts from actual downloads
+  const counts = useMemo(() => {
+    const all = downloads.length;
+    const downloading = downloads.filter(d => 
+      ['downloading', 'connecting', 'queued'].includes(d.status)
+    ).length;
+    const completed = downloads.filter(d => d.status === 'completed').length;
+    const failed = downloads.filter(d => d.status === 'failed').length;
+    
+    return { all, downloading, completed, failed };
+  }, [downloads]);
 
   const categories = [
-    { path: "/", icon: Download, label: "All Downloads", count: 24 },
-    { path: "/downloading", icon: Clock, label: "Downloading", count: 3 },
-    { path: "/completed", icon: CheckCircle, label: "Completed", count: 18 },
-    { path: "/failed", icon: AlertCircle, label: "Failed", count: 2 },
+    { path: "/", icon: Download, label: "All Downloads", count: counts.all },
+    { path: "/downloading", icon: Clock, label: "Downloading", count: counts.downloading },
+    { path: "/completed", icon: CheckCircle, label: "Completed", count: counts.completed },
+    { path: "/failed", icon: AlertCircle, label: "Failed", count: counts.failed },
   ];
 
   const fileTypes = [

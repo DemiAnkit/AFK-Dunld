@@ -1,4 +1,5 @@
 // src/components/settings/SettingsPage.tsx
+import React from "react";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { 
   Palette, 
@@ -8,7 +9,21 @@ import {
 } from "lucide-react";
 
 export function SettingsPage() {
-  const { settings, updateSettings } = useSettingsStore();
+  const { settings, updateSettings, loadSettings } = useSettingsStore();
+
+  React.useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  if (!settings) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-gray-400">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -30,7 +45,7 @@ export function SettingsPage() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  value={settings.downloadPath}
+                  value={settings?.downloadPath || ''}
                   readOnly
                   className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 
                            rounded-lg text-white text-sm"
@@ -55,14 +70,14 @@ export function SettingsPage() {
                 </p>
               </div>
               <button
-                onClick={() => updateSettings({ autoStartDownloads: !settings.autoStartDownloads })}
+                onClick={() => updateSettings({ autoStartDownloads: !settings?.autoStartDownloads })}
                 className={`w-12 h-6 rounded-full transition-colors ${
-                  settings.autoStartDownloads ? "bg-blue-600" : "bg-gray-700"
+                  settings?.autoStartDownloads ? "bg-blue-600" : "bg-gray-700"
                 }`}
               >
                 <div
                   className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                    settings.autoStartDownloads ? "translate-x-6" : "translate-x-1"
+                    settings?.autoStartDownloads ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -78,14 +93,14 @@ export function SettingsPage() {
                 </p>
               </div>
               <button
-                onClick={() => updateSettings({ minimizeToTray: !settings.minimizeToTray })}
+                onClick={() => updateSettings({ minimizeToTray: !settings?.minimizeToTray })}
                 className={`w-12 h-6 rounded-full transition-colors ${
-                  settings.minimizeToTray ? "bg-blue-600" : "bg-gray-700"
+                  settings?.minimizeToTray ? "bg-blue-600" : "bg-gray-700"
                 }`}
               >
                 <div
                   className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                    settings.minimizeToTray ? "translate-x-6" : "translate-x-1"
+                    settings?.minimizeToTray ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -103,13 +118,13 @@ export function SettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Max Concurrent Downloads: {settings.maxConcurrentDownloads}
+                Max Concurrent Downloads: {settings?.maxConcurrentDownloads || 3}
               </label>
               <input
                 type="range"
                 min="1"
                 max="10"
-                value={settings.maxConcurrentDownloads}
+                value={settings?.maxConcurrentDownloads || 3}
                 onChange={(e) => updateSettings({ maxConcurrentDownloads: parseInt(e.target.value) })}
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none 
                          cursor-pointer accent-blue-500"
@@ -118,14 +133,14 @@ export function SettingsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Speed Limit (KB/s): {settings.maxDownloadSpeed === 0 ? "Unlimited" : settings.maxDownloadSpeed}
+                Speed Limit (KB/s): {(settings?.maxDownloadSpeed || 0) === 0 ? "Unlimited" : settings?.maxDownloadSpeed}
               </label>
               <input
                 type="range"
                 min="0"
                 max="10240"
                 step="100"
-                value={settings.maxDownloadSpeed}
+                value={settings?.maxDownloadSpeed || 0}
                 onChange={(e) => updateSettings({ maxDownloadSpeed: parseInt(e.target.value) })}
                 className="w-full h-2 bg-gray-700 rounded-lg appearance-none 
                          cursor-pointer accent-blue-500"
@@ -152,7 +167,7 @@ export function SettingsPage() {
                   key={theme}
                   onClick={() => updateSettings({ theme: theme as any })}
                   className={`px-4 py-2 rounded-lg text-sm capitalize transition-colors ${
-                    settings.theme === theme
+                    settings?.theme === theme
                       ? "bg-blue-600 text-white"
                       : "bg-gray-800 text-gray-300 hover:bg-gray-700"
                   }`}
@@ -181,14 +196,14 @@ export function SettingsPage() {
               </p>
             </div>
             <button
-              onClick={() => updateSettings({ showNotifications: !settings.showNotifications })}
+              onClick={() => updateSettings({ showNotifications: !settings?.showNotifications })}
               className={`w-12 h-6 rounded-full transition-colors ${
-                settings.showNotifications ? "bg-blue-600" : "bg-gray-700"
+                settings?.showNotifications ? "bg-blue-600" : "bg-gray-700"
               }`}
             >
               <div
                 className={`w-5 h-5 bg-white rounded-full transition-transform ${
-                  settings.showNotifications ? "translate-x-6" : "translate-x-1"
+                  settings?.showNotifications ? "translate-x-6" : "translate-x-1"
                 }`}
               />
             </button>

@@ -1,36 +1,47 @@
 import { create } from "zustand";
+import { downloadApi } from "../services/tauriApi";
+import type { QueueInfo } from "../types/download";
+import toast from "react-hot-toast";
 
 interface QueueState {
-  queue: string[];
-  isProcessing: boolean;
-  addToQueue: (url: string) => void;
-  removeFromQueue: (url: string) => void;
-  processQueue: () => Promise<void>;
+  queueInfo: QueueInfo | null;
+  isLoading: boolean;
+  error: string | null;
+  fetchQueueInfo: () => Promise<void>;
+  setMaxConcurrent: (max: number) => Promise<void>;
 }
 
-export const useQueueStore = create<QueueState>((set, get) => ({
-  queue: [],
-  isProcessing: false,
+export const useQueueStore = create<QueueState>((set) => ({
+  queueInfo: null,
+  isLoading: false,
+  error: null,
 
-  addToQueue: (url: string) => {
-    set((state) => ({
-      queue: [...state.queue, url],
-    }));
+  fetchQueueInfo: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const queueInfo = await downloadApi.getQueueInfo();
+      set({ queueInfo, isLoading: false });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to fetch queue info";
+      set({ error: errorMessage, isLoading: false });
+      console.error("Failed to fetch queue info:", error);
+    }
   },
 
-  removeFromQueue: (url: string) => {
-    set((state) => ({
-      queue: state.queue.filter((item) => item !== url),
-    }));
-  },
-
-  processQueue: async () => {
-    const { queue, isProcessing } = get();
-    if (isProcessing || queue.length === 0) return;
-
-    set({ isProcessing: true });
-    // TODO: Implement queue processing
-    console.log("Processing queue...", queue);
-    set({ isProcessing: false });
+  setMaxConcurrent: async (max: number) => {
+    try {
+      await downloadApi.setMaxConcurrent(max);
+      set((state) => ({
+        queueInfo: state.queueInfo 
+          ? { ...state.queueInfo, maxConcurrent: max }
+          : null,
+      }));
+      toast.success(`Max concurrent downloads set to ${max}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to set max concurrent";
+      set({ error: errorMessage });
+      toast.error(errorMessage);
+      throw error;
+    }
   },
 }));

@@ -1,54 +1,62 @@
+// Download status - matches Rust backend DownloadStatus enum
 export type DownloadStatus = 
-  | 'pending' 
+  | 'queued'
+  | 'connecting'
   | 'downloading' 
   | 'paused' 
   | 'completed' 
   | 'failed' 
-  | 'cancelled' 
-  | 'queued';
+  | 'cancelled'
+  | 'merging'
+  | 'verifying';
 
 export type ChecksumType = 'md5' | 'sha1' | 'sha256' | null;
 
+// Main Download interface - matches Rust DownloadTask
 export interface Download {
   id: string;
   url: string;
+  finalUrl: string | null;
   fileName: string;
   savePath: string;
   totalSize: number | null;
   downloadedSize: number;
   status: DownloadStatus;
+  speed: number;
+  eta: number | null;
   segments: number;
-  retries: number;
-  maxRetries: number;
   supportsRange: boolean;
   contentType: string | null;
   etag: string | null;
   expectedChecksum: string | null;
-  checksumType: ChecksumType;
+  actualChecksum: string | null;
+  checksumAlgorithm: ChecksumType;
+  retryCount: number;
   errorMessage: string | null;
   createdAt: string;
   completedAt: string | null;
   priority: number;
-  speedLimit: number | null;
   category: string | null;
 }
 
+// Download progress event - matches Rust DownloadProgress
 export interface DownloadProgress {
   id: string;
-  downloadedBytes: number;
-  totalBytes: number | null;
+  downloadedSize: number;
+  totalSize: number | null;
   speed: number; // bytes per second
   eta: number | null; // seconds
-  progress: number; // 0-100
+  status: DownloadStatus;
+  percent: number; // 0-100
+  errorMessage: string | null;
 }
 
+// File info - matches Rust FileInfo
 export interface FileInfo {
   fileName: string;
   contentType: string | null;
   totalSize: number | null;
   supportsRange: boolean;
-  etag: string | null;
-  lastModified: string | null;
 }
 
 export interface DownloadStats {
@@ -72,6 +80,20 @@ export interface BatchDownloadItem {
   url: string;
   fileName?: string;
   category?: string;
+}
+
+export interface QueueInfo {
+  activeCount: number;
+  queuedCount: number;
+  maxConcurrent: number;
+}
+
+export interface DownloadStats {
+  totalSpeed: number;
+  totalDownloaded: number;
+  activeDownloads: number;
+  completedDownloads: number;
+  failedDownloads: number;
 }
 
 export interface DownloadFilter {

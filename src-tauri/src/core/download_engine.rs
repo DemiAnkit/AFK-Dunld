@@ -814,7 +814,7 @@ fn format_bytes(bytes: u64) -> String {
 /// NOTE: This type is shared with the Tauri commands layer
 /// (`src-tauri/src/commands/download_commands.rs`). Keep the
 /// fields in sync with that struct.
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct AddDownloadRequest {
     pub url: String,
     pub save_path: Option<String>,
@@ -825,4 +825,11 @@ pub struct AddDownloadRequest {
     pub file_name: Option<String>,
     pub category: Option<String>,
     pub priority: Option<u32>,
+
+    // YouTube-specific fields
+    pub youtube_format: Option<String>,        // "video" or "audio"
+    pub youtube_quality: Option<String>,       // "2160p", "1080p", etc.
+    pub youtube_video_format: Option<String>,  // "mp4", "mkv", "webm"
+    pub youtube_audio_format: Option<String>,  // "mp3", "aac", "flac"
 }
+

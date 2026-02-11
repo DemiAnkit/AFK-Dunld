@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use crate::state::app_state::{AppState, ActiveDownload};
 use crate::core::download_engine::AddDownloadRequest;
+use crate::network::youtube_downloader::{YouTubeDownloader, YouTubeDownloadOptions};
 use crate::core::download_task::{
     DownloadTask, DownloadStatus, DownloadProgress, FileInfo
 };
@@ -384,4 +385,113 @@ pub async fn set_max_concurrent(
 ) -> Result<(), String> {
     // TODO: Implement
     Ok(())
+}
+
+use crate::network::youtube_downloader::{YouTubeDownloader, YouTubeDownloadOptions};
+#[tauri::command]
+pub async fn add_download(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+    request: AddDownloadRequest,
+) -> Result<DownloadTask, String> {
+    // Check if YouTube URL
+    if YouTubeDownloader::is_youtube_url(&request.url) {
+        return handle_youtube_download(app_handle, state, request).await;
+    }
+
+    // Regular download logic...
+    // (existing code continues)
+}
+
+async fn handle_youtube_download(
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+    request: AddDownloadRequest,
+) -> Result<DownloadTask, String> {
+    let youtube_dl = YouTubeDownloader::new();
+
+    // Get video info first
+    let video_info = youtube_dl
+        .get_video_info(&request.url)
+        .await
+        .map_err(|e| format!("Failed to get video info: {}", e))?;
+
+    // Determine save path
+    let file_name = request.file_name.unwrap_or(video_info.title.clone());
+    let extension = if request.youtube_format.as_deref() == Some("audio") {
+        request.youtube_audio_format.as_deref().unwrap_or("mp3")
+    } else {
+        request.youtube_video_format.as_deref().unwrap_or("mp4")
+    };
+    
+    let full_file_name = format!("{}.{}", file_name, extension);
+    let save_path = PathBuf::from(
+        request.save_path.unwrap_or_else(|| state.engine.default_download_dir().to_string_lossy().to_string())
+    ).join(&full_file_name);
+
+    // Create download task
+    let task_id = Uuid::new_v4();
+    let task = DownloadTask {
+        id: task_id,
+        url: request.url.clone(),
+        final_url: None,
+        file_name: full_file_name,
+        save_path: save_path.clone(),
+        total_size: video_info.filesize,
+        downloaded_size: 0,
+        status: DownloadStatus::Downloading,
+        speed: 0,
+        eta: None,
+        segments: 1,
+        supports_range: false,
+        content_type: Some("video/mp4".to_string()),
+        etag: None,
+        expected_checksum: None,
+        actual_checksum: None,
+        checksum_algorithm: None,
+        retry_count: 0,
+        error_message: None,
+        created_at: chrono::Utc::now(),
+        completed_at: None,
+        priority: request.priority.unwrap_or(0),
+        category: Some("youtube".to_string()),
+    };
+
+    // Save to database
+    state.db.insert_download(&task).await.map_err(|e| e.to_string())?;
+
+    // Download in background
+    let options = YouTubeDownloadOptions {
+        url: request.url.clone(),
+        format_type: request.youtube_format.unwrap_or("video".to_string()),
+        video_quality: request.youtube_quality.unwrap_or("best".to_string()),
+        video_format: request.youtube_video_format.unwrap_or("mp4".to_string()),
+        audio_format: request.youtube_audio_format.unwrap_or("mp3".to_string()),
+        save_path: save_path.clone(),
+    };
+
+    let task_clone = task.clone();
+    let db = state.db.clone();
+    let app_handle_clone = app_handle.clone();
+
+    tokio::spawn(async move {
+        match youtube_dl.download(options).await {
+            Ok(_) => {
+                let mut completed_task = task_clone;
+                completed_task.status = DownloadStatus::Completed;
+                completed_task.completed_at = Some(chrono::Utc::now());
+                let _ = db.update_download(&completed_task).await;
+                let _ = app_handle_clone.emit("download-complete", &completed_task);
+            }
+            Err(e) => {
+                let mut failed_task = task_clone;
+                failed_task.status = DownloadStatus::Failed;
+                failed_task.error_message = Some(e.to_string());
+                let _ = db.update_download(&failed_task).await;
+                let _ = app_handle_clone.emit("download-failed", &failed_task);
+            }
+        }
+    });
+
+    Ok(task)
 }

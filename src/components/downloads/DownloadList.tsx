@@ -1,5 +1,4 @@
 // src/components/downloads/DownloadList.tsx
-import { useEffect } from "react";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { DownloadItem } from "./DownloadItem";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,20 +9,16 @@ interface DownloadListProps {
 }
 
 export function DownloadList({ filter }: DownloadListProps) {
-  const { downloads, fetchDownloads } = useDownloadStore();
-
-  useEffect(() => {
-    fetchDownloads();
-  }, []);
+  const { downloads } = useDownloadStore();
 
   const filteredDownloads = downloads.filter((d) => {
     switch (filter) {
       case "downloading":
-        return ["Downloading", "Queued", "Paused"].includes(d.status);
+        return ["downloading", "queued", "paused", "connecting"].includes(d.status);
       case "completed":
-        return d.status === "Completed";
+        return d.status === "completed";
       case "failed":
-        return ["Failed", "Cancelled"].includes(d.status);
+        return ["failed", "cancelled"].includes(d.status);
       default:
         return true;
     }
@@ -39,14 +34,16 @@ export function DownloadList({ filter }: DownloadListProps) {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full p-6">
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-white mb-2">{getFilterTitle()}</h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+          <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+            {getFilterTitle()}
+          </span>
+        </h1>
         <div className="flex items-center gap-4 text-sm text-gray-400">
-          <span>{filteredDownloads.length} {filteredDownloads.length === 1 ? 'item' : 'items'}</span>
-          <span>•</span>
-          <span>Free space: 124.5 GB</span>
+          <span className="font-medium">{filteredDownloads.length} {filteredDownloads.length === 1 ? 'item' : 'items'}</span>
         </div>
       </div>
 
