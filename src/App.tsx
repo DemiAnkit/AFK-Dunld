@@ -3,10 +3,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { Sidebar } from "./components/layout/Sidebar";
-import { Header } from "./components/layout/Header";
+import { Toolbar } from "./components/layout/Toolbar";
 import { DownloadList } from "./components/downloads/DownloadList";
 import { SettingsPage } from "./components/settings/SettingsPage";
-import { StatusBar } from "./components/layout/StatusBar";
 import { useDownloadEvents } from "./hooks/useTauriEvents";
 import { useTheme } from "./hooks/useTheme";
 
@@ -17,10 +16,10 @@ function AppContent() {
   useTheme();
 
   return (
-    <div className="flex h-screen bg-gray-950 text-white">
-      <Sidebar />
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <Header />
+    <div className="flex flex-col h-screen bg-gray-950 text-white">
+      <Toolbar />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar />
         <main className="flex-1 overflow-auto p-4">
           <Routes>
             <Route path="/" element={<DownloadList filter="all" />} />
@@ -30,7 +29,6 @@ function AppContent() {
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
-        <StatusBar />
       </div>
       <Toaster
         position="bottom-right"
