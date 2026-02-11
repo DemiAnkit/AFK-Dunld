@@ -5,8 +5,7 @@ import {
   Palette, 
   Download, 
   Sliders,
-  Bell,
-  Youtube
+  Bell
 } from "lucide-react";
 import { YouTubeSettings } from "./YouTubeSettings";
 

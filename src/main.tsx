@@ -27,14 +27,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   console.log("✅ Root element found");
 
-  // Clear loading screen
-  rootElement.innerHTML = '';
+  // Add timeout for loading screen removal
+  const loadingTimeout = setTimeout(() => {
+    console.log("⏰ Loading timeout reached - forcing app render");
+    const loadingScreen = rootElement.querySelector('.loading-screen');
+    if (loadingScreen) {
+      loadingScreen.remove();
+    }
+  }, 5000); // 5 second timeout
 
   try {
     console.log("🎨 Rendering React app...");
     
     // Create React root and render
-    ReactDOM.createRoot(rootElement).render(
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
       <React.StrictMode>
         <ErrorBoundary>
           <App />
@@ -42,8 +49,21 @@ document.addEventListener('DOMContentLoaded', () => {
       </React.StrictMode>
     );
     
+    // Clear timeout and loading screen once React starts rendering
+    clearTimeout(loadingTimeout);
+    
+    // Clear the loading screen after a short delay to allow React to mount
+    setTimeout(() => {
+      const loadingScreen = rootElement.querySelector('.loading-screen');
+      if (loadingScreen) {
+        loadingScreen.remove();
+        console.log("✅ Loading screen cleared");
+      }
+    }, 100);
+    
     console.log("✅ React app rendered successfully");
   } catch (error) {
+    clearTimeout(loadingTimeout);
     console.error("❌ Failed to render React app:", error);
     rootElement.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: center; height: 100vh; background: #0a0a0f; color: #ef4444; font-family: sans-serif; padding: 20px;">

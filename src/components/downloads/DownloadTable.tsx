@@ -3,7 +3,7 @@ import { useDownloadStore } from "../../stores/downloadStore";
 import { DownloadTableRow } from "./DownloadTableRow";
 
 interface DownloadTableProps {
-  filter: "all" | "downloading" | "completed" | "failed" | "missing" | "torrent" | "video" | "music";
+  filter: "all" | "downloading" | "completed" | "failed" | "missing" | "torrent" | "video" | "music" | "youtube";
 }
 
 export function DownloadTable({ filter }: DownloadTableProps) {
@@ -25,6 +25,8 @@ export function DownloadTable({ filter }: DownloadTableProps) {
         return d.category === "video" || /\.(mp4|avi|mkv|mov|wmv)$/i.test(d.fileName || '');
       case "music":
         return d.category === "music" || /\.(mp3|wav|flac|aac)$/i.test(d.fileName || '');
+      case "youtube":
+        return d.category === "youtube" || /(youtube|youtu\.be)/i.test(d.url || '');
       default:
         return true;
     }

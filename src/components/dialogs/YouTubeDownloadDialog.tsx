@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import Modal from '../common/Modal';
 import Button from '../common/Button';
-import type { VideoInfo, QualityOption } from '../../types/youtube';
+import type { VideoInfo } from '../../types/youtube';
 
 interface YouTubeDownloadDialogProps {
   isOpen: boolean;
@@ -18,7 +18,7 @@ const YouTubeDownloadDialog: React.FC<YouTubeDownloadDialogProps> = ({
   onDownloadStart,
 }) => {
   const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
-  const [qualities, setQualities] = useState<QualityOption[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   

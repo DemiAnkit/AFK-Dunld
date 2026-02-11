@@ -33,15 +33,40 @@ function AppContent() {
   // Load initial data
   useEffect(() => {
     console.log("App initialized - Loading data...");
-    fetchDownloads().catch(err => console.error("Failed to fetch downloads:", err));
-    loadSettings().catch(err => console.error("Failed to load settings:", err));
     
-    // Check yt-dlp installation
-    checkInstallation().then(installed => {
-      if (!installed) {
-        setShowYtdlpWarning(true);
+    const initializeApp = async () => {
+      try {
+        // Load downloads
+        await fetchDownloads();
+        console.log("✅ Downloads loaded successfully");
+      } catch (err) {
+        console.error("❌ Failed to fetch downloads:", err);
       }
-    });
+      
+      try {
+        // Load settings
+        await loadSettings();
+        console.log("✅ Settings loaded successfully");
+      } catch (err) {
+        console.error("❌ Failed to load settings:", err);
+      }
+      
+      try {
+        // Check yt-dlp installation
+        const installed = await checkInstallation();
+        if (!installed) {
+          console.log("⚠️ yt-dlp not installed");
+          setShowYtdlpWarning(true);
+        } else {
+          console.log("✅ yt-dlp is installed");
+        }
+      } catch (err) {
+        console.error("❌ Failed to check yt-dlp installation:", err);
+        // Don't show warning if check fails - might be in dev mode
+      }
+    };
+    
+    initializeApp();
   }, [fetchDownloads, loadSettings, checkInstallation]);
 
   return (

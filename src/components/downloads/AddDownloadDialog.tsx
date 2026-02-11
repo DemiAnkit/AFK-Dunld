@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Plus, Link, FolderOpen, Download, Youtube } from "lucide-react";
+import { X, Plus, Link, FolderOpen, Download } from "lucide-react";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import toast from "react-hot-toast";
