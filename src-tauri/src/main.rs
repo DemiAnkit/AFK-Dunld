@@ -80,6 +80,7 @@ fn main() {
             commands::download_commands::get_queue_info,
             commands::download_commands::set_max_concurrent,
             commands::download_commands::check_file_exists,
+            commands::download_commands::get_file_size,
             // YouTube/video download commands
             commands::download_commands::check_ytdlp_installed,
             commands::download_commands::get_video_info,

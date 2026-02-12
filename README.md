@@ -91,6 +91,23 @@ This command:
 3. Opens the Tauri application window
 4. Enables hot reload for both frontend and backend
 
+### Quick Start Guide
+
+Once the app is running, try these features:
+
+1. **Add a download** - Click the "Add Download" button or use the plus icon
+2. **Test keyboard shortcuts**:
+   - Add multiple downloads
+   - Press **P** to pause them
+   - Press **R** to resume
+   - Press **Ctrl/Cmd + A** to select all
+3. **Try multi-select**:
+   - Hold Shift and click to select a range
+   - Hold Ctrl/Cmd and click to toggle individual items
+   - Use the bulk actions toolbar that appears
+4. **View shortcuts** - Click the keyboard icon (⌨️) in the header
+5. **Watch status indicators** - Notice the orange color when downloads are paused
+
 ### Available Scripts
 
 - `npm run dev` - Start Vite dev server only (frontend only)
@@ -236,6 +253,68 @@ Edit `src-tauri/tauri.conf.json` to modify:
 - System notifications
 - Dark/Light theme support
 - Cross-platform (Windows, macOS, Linux)
+- **Keyboard shortcuts** for efficient download management
+- **Bulk operations** with multi-select support
+- **Visual status indicators** with color-coded states
+- **Smooth animations** and modern UI effects
+
+## User Interface
+
+### Keyboard Shortcuts
+
+AFK-Dunld includes powerful keyboard shortcuts for efficient download management:
+
+| Shortcut | Action | Category |
+|----------|--------|----------|
+| **Ctrl/Cmd + N** | Open new download dialog | General |
+| **Ctrl/Cmd + S** | Open settings | General |
+| **Ctrl/Cmd + F** | Focus search box | General |
+| **1-8** | Navigate between tabs (All, Missing, Active, Completed, YouTube, Torrent, Video, Music) | Navigation |
+| **P** | Pause selected/active downloads | Downloads |
+| **R** | Resume selected/paused downloads | Downloads |
+| **Delete** | Remove selected downloads (with confirmation) | Downloads |
+| **Ctrl/Cmd + A** | Select all downloads | Selection |
+| **Shift + Click** | Select range of downloads | Selection |
+| **Ctrl/Cmd + Click** | Toggle individual selection | Selection |
+| **Esc** | Clear selection | Selection |
+
+**Tip:** Press the keyboard icon (⌨️) in the header to view all shortcuts anytime!
+
+### Download Status Indicators
+
+Downloads are visually distinguished by color-coded status indicators:
+
+- 🔵 **Blue** - Downloading (active)
+- ⏸️ **Orange** - Paused
+- ✅ **Green** - Completed
+- 🔴 **Red** - Failed/Error
+- ⏳ **Gray** - Queued/Waiting
+
+### Multi-Select & Bulk Operations
+
+Select multiple downloads to perform bulk actions:
+
+1. **Select downloads** using:
+   - Click checkboxes
+   - Shift + Click for range selection
+   - Ctrl/Cmd + Click for individual toggle
+   - Ctrl/Cmd + A to select all
+
+2. **Bulk actions toolbar** appears when items are selected:
+   - Pause all selected
+   - Resume all selected
+   - Remove all selected
+   - Clear selection
+
+### UI Features
+
+- **Animated buttons** with hover effects and glow
+- **Smooth transitions** for status changes
+- **Progress visualization** with real-time speed graphs
+- **Modal animations** with backdrop blur
+- **Responsive design** that adapts to window size
+- **Custom scrollbars** for better aesthetics
+- **Glass morphism effects** on cards and dialogs
 
 ## Troubleshooting
 

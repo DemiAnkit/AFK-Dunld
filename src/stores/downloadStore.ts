@@ -20,6 +20,10 @@ interface DownloadState {
   resumeAll: () => Promise<void>;
   cancelAll: () => Promise<void>;
   addBatchDownloads: (urls: string[], savePath?: string) => Promise<void>;
+  pauseSelected: (ids: string[]) => Promise<void>;
+  resumeSelected: (ids: string[]) => Promise<void>;
+  cancelSelected: (ids: string[]) => Promise<void>;
+  removeSelected: (ids: string[], deleteFiles?: boolean) => Promise<void>;
 }
 
 export const useDownloadStore = create<DownloadState>((set, get) => ({
@@ -208,6 +212,124 @@ export const useDownloadStore = create<DownloadState>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : "Failed to add batch downloads";
       toast.error(errorMessage);
       throw error;
+    }
+  },
+
+  pauseSelected: async (ids: string[]) => {
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (const id of ids) {
+      try {
+        await downloadService.pauseDownload(id);
+        successCount++;
+      } catch (error) {
+        errors.push(id);
+        console.error(`Failed to pause download ${id}:`, error);
+      }
+    }
+
+    // Update state for successful pauses
+    set((state) => ({
+      downloads: state.downloads.map((d) =>
+        ids.includes(d.id) && !errors.includes(d.id) ? { ...d, status: "paused" as const } : d
+      ),
+    }));
+
+    if (successCount > 0) {
+      toast.success(`Paused ${successCount} download${successCount > 1 ? 's' : ''}`);
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to pause ${errors.length} download${errors.length > 1 ? 's' : ''}`);
+    }
+  },
+
+  resumeSelected: async (ids: string[]) => {
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (const id of ids) {
+      try {
+        await downloadService.resumeDownload(id);
+        successCount++;
+      } catch (error) {
+        errors.push(id);
+        console.error(`Failed to resume download ${id}:`, error);
+      }
+    }
+
+    // Update state for successful resumes
+    set((state) => ({
+      downloads: state.downloads.map((d) =>
+        ids.includes(d.id) && !errors.includes(d.id) ? { ...d, status: "downloading" as const } : d
+      ),
+    }));
+
+    if (successCount > 0) {
+      toast.success(`Resumed ${successCount} download${successCount > 1 ? 's' : ''}`);
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to resume ${errors.length} download${errors.length > 1 ? 's' : ''}`);
+    }
+  },
+
+  cancelSelected: async (ids: string[]) => {
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (const id of ids) {
+      try {
+        await downloadService.cancelDownload(id);
+        successCount++;
+      } catch (error) {
+        errors.push(id);
+        console.error(`Failed to cancel download ${id}:`, error);
+      }
+    }
+
+    // Update state for successful cancellations
+    set((state) => ({
+      downloads: state.downloads.map((d) =>
+        ids.includes(d.id) && !errors.includes(d.id) ? { ...d, status: "cancelled" as const } : d
+      ),
+    }));
+
+    if (successCount > 0) {
+      toast.success(`Cancelled ${successCount} download${successCount > 1 ? 's' : ''}`);
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to cancel ${errors.length} download${errors.length > 1 ? 's' : ''}`);
+    }
+  },
+
+  removeSelected: async (ids: string[], deleteFiles = false) => {
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (const id of ids) {
+      try {
+        await downloadService.removeDownload(id, deleteFiles);
+        successCount++;
+      } catch (error) {
+        errors.push(id);
+        console.error(`Failed to remove download ${id}:`, error);
+      }
+    }
+
+    // Remove successful deletions from state
+    set((state) => ({
+      downloads: state.downloads.filter((d) => !ids.includes(d.id) || errors.includes(d.id)),
+    }));
+
+    if (successCount > 0) {
+      toast.success(
+        deleteFiles 
+          ? `Removed ${successCount} download${successCount > 1 ? 's' : ''} and deleted file${successCount > 1 ? 's' : ''}`
+          : `Removed ${successCount} download${successCount > 1 ? 's' : ''}`
+      );
+    }
+    if (errors.length > 0) {
+      toast.error(`Failed to remove ${errors.length} download${errors.length > 1 ? 's' : ''}`);
     }
   },
 }));

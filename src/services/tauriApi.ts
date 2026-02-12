@@ -239,6 +239,14 @@ export const downloadApi = {
     }
     return await invoke<boolean>('check_file_exists', { id });
   },
+
+  getFileSize: async (id: string): Promise<number> => {
+    if (!isTauri()) {
+      console.log('Mock: getFileSize called with:', id);
+      return 0;
+    }
+    return await invoke<number>('get_file_size', { id });
+  },
 };
 
 // YouTube/Video download commands

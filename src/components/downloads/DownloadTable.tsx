@@ -1,16 +1,19 @@
 // src/components/downloads/DownloadTable.tsx
+import { useState } from "react";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { useUIStore } from "../../stores/uiStore";
 import { DownloadTableRow } from "./DownloadTableRow";
-import { Download } from "lucide-react";
+import { Download, ArrowUpDown, ArrowUp, ArrowDown, Pause, Play, Trash2, X } from "lucide-react";
+import { DownloadSort } from "../../types/download";
 
 interface DownloadTableProps {
   filter: "all" | "downloading" | "completed" | "failed" | "missing" | "torrent" | "video" | "music" | "youtube";
 }
 
 export function DownloadTable({ filter }: DownloadTableProps) {
-  const { downloads } = useDownloadStore();
-  const { searchQuery } = useUIStore();
+  const { downloads, pauseSelected, resumeSelected, removeSelected } = useDownloadStore();
+  const { searchQuery, selectedDownloads, selectAll, clearSelection } = useUIStore();
+  const [sort, setSort] = useState<DownloadSort>({ field: "createdAt", order: "desc" });
 
   // View mode is available for future grid view implementation
   // const { viewMode } = useUIStore();
@@ -51,22 +54,196 @@ export function DownloadTable({ filter }: DownloadTableProps) {
     });
   }
 
+  // Sort downloads - prioritize active downloads at top
+  filteredDownloads = [...filteredDownloads].sort((a, b) => {
+    // First, prioritize by status - active downloads at top (including paused)
+    const activeStatuses = ['downloading', 'connecting', 'queued', 'paused'];
+    const aIsActive = activeStatuses.includes(a.status);
+    const bIsActive = activeStatuses.includes(b.status);
+    
+    if (aIsActive && !bIsActive) return -1;
+    if (!aIsActive && bIsActive) return 1;
+    
+    // Then apply the selected sort
+    let comparison = 0;
+    switch (sort.field) {
+      case "fileName":
+        comparison = (a.fileName || "").localeCompare(b.fileName || "");
+        break;
+      case "createdAt":
+        comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        break;
+      case "completedAt":
+        const aCompleted = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+        const bCompleted = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+        comparison = aCompleted - bCompleted;
+        break;
+      case "progress":
+        const aProgress = a.totalSize ? (a.downloadedSize / a.totalSize) : 0;
+        const bProgress = b.totalSize ? (b.downloadedSize / b.totalSize) : 0;
+        comparison = aProgress - bProgress;
+        break;
+      case "priority":
+        comparison = (a.priority || 0) - (b.priority || 0);
+        break;
+      default:
+        comparison = 0;
+    }
+    return sort.order === "asc" ? comparison : -comparison;
+  });
+
+  const handleSort = (field: DownloadSort["field"]) => {
+    setSort((current) => ({
+      field,
+      order: current.field === field && current.order === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const getSortIcon = (field: DownloadSort["field"]) => {
+    if (sort.field !== field) {
+      return <ArrowUpDown className="w-3 h-3 opacity-30" />;
+    }
+    return sort.order === "asc" ? (
+      <ArrowUp className="w-3 h-3 text-blue-400" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-blue-400" />
+    );
+  };
+
+  const handleSelectAll = () => {
+    const selectionSize = selectedDownloads instanceof Set ? selectedDownloads.size : 0;
+    if (selectionSize === filteredDownloads.length && filteredDownloads.length > 0) {
+      clearSelection();
+    } else {
+      selectAll(filteredDownloads.map(d => d.id));
+    }
+  };
+
+  const selectionSize = selectedDownloads instanceof Set ? selectedDownloads.size : 0;
+  const isAllSelected = filteredDownloads.length > 0 && selectionSize === filteredDownloads.length;
+  const isSomeSelected = selectionSize > 0 && selectionSize < filteredDownloads.length;
+
+  const selectedIds = Array.from(selectedDownloads);
+  const selectedDownloadsList = downloads.filter(d => selectedIds.includes(d.id));
+  
+  const canPauseSelected = selectedDownloadsList.some(d => 
+    d.status === 'downloading' || d.status === 'connecting' || d.status === 'queued'
+  );
+  const canResumeSelected = selectedDownloadsList.some(d => d.status === 'paused');
+
+  const handlePauseSelected = async () => {
+    const toPause = selectedDownloadsList.filter(d => 
+      d.status === 'downloading' || d.status === 'connecting' || d.status === 'queued'
+    );
+    if (toPause.length > 0) {
+      await pauseSelected(toPause.map(d => d.id));
+    }
+  };
+
+  const handleResumeSelected = async () => {
+    const toResume = selectedDownloadsList.filter(d => d.status === 'paused');
+    if (toResume.length > 0) {
+      await resumeSelected(toResume.map(d => d.id));
+    }
+  };
+
+
+  const handleRemoveSelected = async () => {
+    if (selectedIds.length > 0) {
+      if (window.confirm(`Remove ${selectedIds.length} download${selectedIds.length > 1 ? 's' : ''}?`)) {
+        await removeSelected(selectedIds, false);
+        clearSelection();
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-950">
+      {/* Bulk Actions Bar - Shows when items are selected */}
+      {selectionSize > 0 && (
+        <div className="bg-blue-900/20 border-b border-blue-500/30 px-4 py-3 flex items-center justify-between backdrop-blur-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-blue-300">
+              {selectionSize} selected
+            </span>
+            <div className="flex items-center gap-2">
+              {canPauseSelected && (
+                <button
+                  onClick={handlePauseSelected}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 
+                           text-orange-300 rounded-lg transition-all duration-200 text-xs font-medium
+                           border border-orange-500/30 hover:border-orange-500/50"
+                  title="Pause selected downloads (P)"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>Pause</span>
+                </button>
+              )}
+              {canResumeSelected && (
+                <button
+                  onClick={handleResumeSelected}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 
+                           text-green-300 rounded-lg transition-all duration-200 text-xs font-medium
+                           border border-green-500/30 hover:border-green-500/50"
+                  title="Resume selected downloads (R)"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Resume</span>
+                </button>
+              )}
+              <button
+                onClick={handleRemoveSelected}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 
+                         text-red-300 rounded-lg transition-all duration-200 text-xs font-medium
+                         border border-red-500/30 hover:border-red-500/50"
+                title="Remove selected downloads (Delete)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Remove</span>
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={clearSelection}
+            className="p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors"
+            title="Clear selection (Esc)"
+          >
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+      )}
+      
       {/* Table Header */}
       <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-900/80 border-b border-gray-800 text-xs font-semibold text-gray-400 uppercase tracking-wider backdrop-blur-sm">
         <div className="col-span-1 flex items-center">
           <input 
-            type="checkbox" 
-            className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-0" 
-            title="Select All" 
+            type="checkbox"
+            checked={isAllSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = isSomeSelected;
+            }}
+            onChange={handleSelectAll}
+            className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer" 
+            title={isAllSelected ? "Deselect All" : "Select All"} 
           />
         </div>
-        <div className="col-span-4">File Name</div>
+        <button 
+          onClick={() => handleSort("fileName")}
+          className="col-span-4 flex items-center gap-2 hover:text-white transition-colors text-left"
+        >
+          File Name
+          {getSortIcon("fileName")}
+        </button>
         <div className="col-span-1">Status</div>
         <div className="col-span-1">Size</div>
         <div className="col-span-1">Speed</div>
-        <div className="col-span-2">Added Date/Time</div>
+        <button 
+          onClick={() => handleSort("createdAt")}
+          className="col-span-2 flex items-center gap-2 hover:text-white transition-colors text-left"
+        >
+          Added Date/Time
+          {getSortIcon("createdAt")}
+        </button>
         <div className="col-span-2 text-right pr-4">Actions</div>
       </div>
 

@@ -54,8 +54,18 @@ export function useDownloadEvents() {
         );
         listeners.push(unlisten4);
 
+        // Download resumed
+        const unlisten5 = await listen<Download>(
+          "download-resumed",
+          (event) => {
+            toast(`▶️ ${event.payload.fileName} resumed`);
+            updateDownload(event.payload);
+          }
+        );
+        listeners.push(unlisten5);
+
         // File deleted from disk
-        const unlisten5 = await listen<{ id: string; file_name: string; message: string }>(
+        const unlisten6 = await listen<{ id: string; file_name: string; message: string }>(
           "file-deleted",
           (event) => {
             toast(
@@ -69,10 +79,10 @@ export function useDownloadEvents() {
             fetchDownloads();
           }
         );
-        listeners.push(unlisten5);
+        listeners.push(unlisten6);
 
         // Clipboard URL detected
-        const unlisten6 = await listen<string>(
+        const unlisten7 = await listen<string>(
           "clipboard-url-detected",
           (event) => {
             toast(
@@ -100,17 +110,17 @@ export function useDownloadEvents() {
             );
           }
         );
-        listeners.push(unlisten6);
+        listeners.push(unlisten7);
 
         // Global speed update (optional - for status bar)
-        const unlisten7 = await listen<number>(
+        const unlisten8 = await listen<number>(
           "global-speed-update",
           (event) => {
             // You can add this to UI store if needed
             console.log("Global speed:", event.payload);
           }
         );
-        listeners.push(unlisten7);
+        listeners.push(unlisten8);
 
       } catch (error) {
         console.error("Failed to setup event listeners:", error);

@@ -16,6 +16,7 @@ import { useDownloadStore } from "./stores/downloadStore";
 import { useSettingsStore } from "./stores/settingsStore";
 import { useUIStore } from "./stores/uiStore";
 import { useYouTubeDownload } from "./hooks/useYouTubeDownload";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { AlertCircle, X } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ function AppContent() {
   
   useDownloadEvents();
   useTheme();
+  useKeyboardShortcuts();
 
   // Load initial data
   useEffect(() => {

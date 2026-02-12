@@ -11,6 +11,41 @@ use crate::core::download_task::{
     DownloadTask, DownloadStatus, DownloadProgress, FileInfo
 };
 
+/// Sanitize filename by removing or replacing invalid characters
+fn sanitize_filename(filename: &str) -> String {
+    // List of characters that are invalid in Windows filenames (most restrictive)
+    // Also invalid on other platforms: / \ : * ? " < > |
+    let invalid_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+    
+    let mut sanitized = filename.to_string();
+    
+    // Replace invalid characters with underscore
+    for ch in invalid_chars {
+        sanitized = sanitized.replace(ch, "_");
+    }
+    
+    // Remove leading/trailing spaces and dots (Windows doesn't like these)
+    sanitized = sanitized.trim().trim_end_matches('.').to_string();
+    
+    // Remove control characters and other problematic characters
+    sanitized = sanitized
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    
+    // Limit filename length to 200 characters (leave room for extension and path)
+    if sanitized.len() > 200 {
+        sanitized.truncate(200);
+    }
+    
+    // If the result is empty, use a default name
+    if sanitized.is_empty() {
+        sanitized = "download".to_string();
+    }
+    
+    sanitized
+}
+
 // Helper function to spawn download task with progress handling
 async fn spawn_download_task(
     app_handle: tauri::AppHandle,
@@ -98,6 +133,7 @@ pub async fn add_download(
 
 #[tauri::command]
 pub async fn pause_download(
+    app_handle: tauri::AppHandle,
     state: State<'_, AppState>,
     id: String,
 ) -> Result<(), String> {
@@ -108,6 +144,11 @@ pub async fn pause_download(
         handle.cancel_token.cancel();
         state.db.update_status(uuid, DownloadStatus::Paused)
             .await.map_err(|e| e.to_string())?;
+        
+        // Get updated task and emit event
+        if let Some(task) = state.db.get_download(uuid).await.map_err(|e| e.to_string())? {
+            let _ = app_handle.emit("download-paused", &task);
+        }
     }
 
     Ok(())
@@ -121,13 +162,22 @@ pub async fn resume_download(
 ) -> Result<(), String> {
     let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
 
-    let task = state.db.get_download(uuid)
+    let mut task = state.db.get_download(uuid)
         .await
         .map_err(|e| e.to_string())?
         .ok_or("Download not found")?;
 
+    // Update status to downloading
+    task.status = DownloadStatus::Downloading;
+    state.db.update_download(&task)
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    // Emit event so UI updates immediately
+    let _ = app_handle.emit("download-resumed", &task);
+
     // Re-start download with resume using helper
-    spawn_download_task(app_handle, &state, task).await?;
+    spawn_download_task(app_handle.clone(), &state, task).await?;
 
     Ok(())
 }
@@ -314,20 +364,121 @@ pub async fn cancel_all(
 
 #[tauri::command]
 pub async fn open_file(
-    _state: State<'_, AppState>,
-    _id: String,
+    state: State<'_, AppState>,
+    id: String,
 ) -> Result<(), String> {
-    // TODO: Implement
-    Ok(())
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    
+    let task = state.db.get_download(uuid)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Download not found")?;
+    
+    // Check if file exists
+    if !tokio::fs::metadata(&task.save_path).await.is_ok() {
+        return Err("File not found on disk".to_string());
+    }
+    
+    // Open the file with default application
+    let result = tokio::task::spawn_blocking(move || {
+        opener::open(&task.save_path).map_err(|e| format!("Failed to open file: {}", e))
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))?;
+    
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 #[tauri::command]
 pub async fn open_file_location(
-    _state: State<'_, AppState>,
-    _id: String,
+    state: State<'_, AppState>,
+    id: String,
 ) -> Result<(), String> {
-    // TODO: Implement
-    Ok(())
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    
+    let task = state.db.get_download(uuid)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Download not found")?;
+    
+    // Validate file path exists (for future use in better error messages)
+    let _file_exists = tokio::fs::metadata(&task.save_path).await.is_ok();
+    
+    // Get the parent directory (folder containing the file)
+    let folder_path = task.save_path
+        .parent()
+        .ok_or("Invalid file path")?
+        .to_path_buf();
+    
+    // Check if folder exists
+    if !tokio::fs::metadata(&folder_path).await.is_ok() {
+        return Err("Folder not found on disk".to_string());
+    }
+    
+    // Open the folder and select the file if possible
+    let file_path = task.save_path.clone();
+    #[allow(unused_variables)]
+    let folder_path_clone = folder_path.clone();
+    
+    let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
+        // Try to reveal the file in the folder (platform-specific)
+        #[cfg(target_os = "windows")]
+        {
+            use std::process::Command;
+            use std::os::windows::process::CommandExt;
+            
+            // Normalize the path for Windows (convert forward slashes to backslashes)
+            let file_path_str = file_path
+                .to_string_lossy()
+                .replace("/", "\\");
+            
+            // Windows: Use explorer with /select to highlight the file
+            // CREATE_NO_WINDOW flag (0x08000000) to prevent console window from appearing
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            
+            let result = Command::new("explorer")
+                .creation_flags(CREATE_NO_WINDOW)
+                .arg(format!("/select,{}", file_path_str))
+                .spawn();
+            
+            match result {
+                Ok(_) => Ok(()),
+                Err(e) => Err(format!("Failed to open Windows Explorer: {}", e)),
+            }
+        }
+        
+        #[cfg(target_os = "macos")]
+        {
+            use std::process::Command;
+            let file_path_str = file_path.to_string_lossy().to_string();
+            let result = Command::new("open")
+                .arg("-R")
+                .arg(&file_path_str)
+                .spawn();
+            if let Err(e) = result {
+                return Err(format!("Failed to open Finder: {}", e));
+            }
+            Ok(())
+        }
+        
+        #[cfg(target_os = "linux")]
+        {
+            // On Linux, just open the folder since file selection varies by DE
+            opener::open(&folder_path_clone).map_err(|e| format!("Failed to open folder: {}", e))
+        }
+        
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            opener::open(&folder_path_clone).map_err(|e| format!("Failed to open folder: {}", e))
+        }
+    })
+    .await
+    .map_err(|e| format!("Task failed: {}", e))?;
+    
+    result
 }
 
 #[tauri::command]
@@ -421,6 +572,27 @@ pub async fn check_file_exists(
     }
 }
 
+/// Get actual file size from disk
+#[tauri::command]
+pub async fn get_file_size(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<u64, String> {
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    
+    let task = state.db.get_download(uuid)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or("Download not found")?;
+    
+    // Get the actual file size from disk
+    let metadata = tokio::fs::metadata(&task.save_path)
+        .await
+        .map_err(|e| format!("Failed to get file metadata: {}", e))?;
+    
+    Ok(metadata.len())
+}
+
 // YouTube download helper function
 async fn handle_youtube_download(
     app_handle: tauri::AppHandle,
@@ -435,8 +607,12 @@ async fn handle_youtube_download(
         .await
         .map_err(|e| format!("Failed to get video info: {}", e))?;
 
-    // Determine save path
-    let file_name = request.file_name.clone().unwrap_or(video_info.title.clone());
+    // Determine save path and sanitize filename
+    let raw_file_name = request.file_name.clone().unwrap_or(video_info.title.clone());
+    
+    // Sanitize filename - remove invalid characters for filesystem
+    let file_name = sanitize_filename(&raw_file_name);
+    
     let extension = if request.youtube_format.as_deref() == Some("audio") {
         request.youtube_audio_format.as_deref().unwrap_or("mp3")
     } else {
@@ -503,10 +679,28 @@ async fn handle_youtube_download(
         match youtube_dl.download(options).await {
             Ok(final_path) => {
                 tracing::info!("YouTube download completed successfully: {:?}", final_path);
+                
+                // Get actual file size from disk
+                let actual_size = tokio::fs::metadata(&final_path)
+                    .await
+                    .ok()
+                    .map(|m| m.len());
+                
+                // Extract the actual filename from the path
+                let actual_filename = final_path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("downloaded_video")
+                    .to_string();
+                
                 let mut completed_task = task_clone;
                 completed_task.status = DownloadStatus::Completed;
                 completed_task.completed_at = Some(chrono::Utc::now().naive_utc());
-                completed_task.save_path = final_path;
+                completed_task.save_path = final_path.clone();
+                completed_task.file_name = actual_filename; // Update with actual filename including extension
+                completed_task.total_size = actual_size; // Update with actual file size
+                completed_task.downloaded_size = actual_size.unwrap_or(0); // Set downloaded size
+                
                 if let Err(e) = db.update_download(&completed_task).await {
                     tracing::error!("Failed to update completed download in DB: {}", e);
                 }

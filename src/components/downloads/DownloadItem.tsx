@@ -1,5 +1,6 @@
 // src/components/downloads/DownloadItem.tsx
-import { 
+import React from "react";
+  import { 
     Pause, Play, X, Trash2, RotateCcw, 
     FolderOpen, CheckCircle2,
     AlertCircle, Clock, Loader2
@@ -19,6 +20,24 @@ import {
       pauseDownload, resumeDownload, cancelDownload, 
       removeDownload, retryDownload 
     } = useDownloadStore();
+    const [actualFileSize, setActualFileSize] = React.useState<number | null>(null);
+
+    // Fetch actual file size for completed downloads
+    React.useEffect(() => {
+      if (download.status === 'completed' && download.savePath) {
+        fetchActualFileSize();
+      }
+    }, [download.status, download.savePath]);
+
+    const fetchActualFileSize = async () => {
+      try {
+        const size = await downloadApi.getFileSize(download.id);
+        setActualFileSize(size);
+      } catch (error) {
+        console.error("Failed to get file size:", error);
+        setActualFileSize(null);
+      }
+    };
   
     const progress = download.totalSize
       ? (download.downloadedSize / download.totalSize) * 100
@@ -130,7 +149,11 @@ import {
         <div className="col-span-2 text-sm">
           <div className="flex flex-col">
             <span className="text-white font-medium">
-              {download.totalSize ? formatBytes(download.totalSize) : formatBytes(download.downloadedSize)}
+              {download.status === 'completed' && actualFileSize !== null
+                ? formatBytes(actualFileSize)
+                : download.totalSize 
+                ? formatBytes(download.totalSize) 
+                : formatBytes(download.downloadedSize)}
             </span>
             <span className={`text-xs ${
               download.status === 'completed' ? 'text-green-400' :

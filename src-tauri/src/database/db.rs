@@ -159,16 +159,22 @@ impl Database {
         sqlx::query(
             r#"
             UPDATE downloads SET
-                downloaded_size = ?1,
-                status = ?2,
-                retry_count = ?3,
-                error_message = ?4,
-                completed_at = ?5,
-                actual_checksum = ?6,
-                segment_progress = ?7
-            WHERE id = ?8
+                file_name = ?1,
+                save_path = ?2,
+                total_size = ?3,
+                downloaded_size = ?4,
+                status = ?5,
+                retry_count = ?6,
+                error_message = ?7,
+                completed_at = ?8,
+                actual_checksum = ?9,
+                segment_progress = ?10
+            WHERE id = ?11
             "#,
         )
+        .bind(&task.file_name)
+        .bind(task.save_path.to_string_lossy().to_string())
+        .bind(task.total_size.map(|s| s as i64))
         .bind(task.downloaded_size as i64)
         .bind(task.status.as_str())
         .bind(task.retry_count as i32)

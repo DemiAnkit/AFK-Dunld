@@ -1,5 +1,6 @@
 // src/components/downloads/DownloadTableRow.tsx
 import { Download, useDownloadStore } from "../../stores/downloadStore";
+import { useUIStore } from "../../stores/uiStore";
 import { formatBytes, formatSpeed } from "../../utils/format";
 import { format, isValid, parseISO } from "date-fns";
 import { downloadApi } from "../../services/tauriApi";
@@ -13,10 +14,12 @@ import {
   Clock,
   XCircle,
   Pause,
+  Play,
   FolderOpen,
   Trash2,
   Info,
-  FileWarning
+  FileWarning,
+  RotateCcw
 } from "lucide-react";
 
 interface DownloadTableRowProps {
@@ -24,15 +27,51 @@ interface DownloadTableRowProps {
 }
 
 export function DownloadTableRow({ download }: DownloadTableRowProps) {
-  const [isSelected, setIsSelected] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [fileExists, setFileExists] = useState<boolean | null>(null);
-  const { removeDownload } = useDownloadStore();
+  const [actualFileSize, setActualFileSize] = useState<number | null>(null);
+  const { removeDownload, pauseDownload, resumeDownload, retryDownload } = useDownloadStore();
+  const { isSelected, toggleSelection } = useUIStore();
+  const isRowSelected = isSelected(download.id);
+
+  const handlePause = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await pauseDownload(download.id);
+      toast.success("Download paused");
+    } catch (error) {
+      console.error("Failed to pause:", error);
+      toast.error("Failed to pause download");
+    }
+  };
+
+  const handleResume = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await resumeDownload(download.id);
+      toast.success("Download resumed");
+    } catch (error) {
+      console.error("Failed to resume:", error);
+      toast.error("Failed to resume download");
+    }
+  };
+
+  const handleRetry = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await retryDownload(download.id);
+      toast.success("Retrying download...");
+    } catch (error) {
+      console.error("Failed to retry:", error);
+      toast.error("Failed to retry download");
+    }
+  };
 
   // Check if file exists on disk (for completed downloads)
   useEffect(() => {
     if (download.status === 'completed' && download.savePath) {
       checkFileExists();
+      fetchActualFileSize();
     }
   }, [download.status, download.savePath]);
 
@@ -44,6 +83,16 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
     } catch (error) {
       // If check fails, assume file exists
       setFileExists(true);
+    }
+  };
+
+  const fetchActualFileSize = async () => {
+    try {
+      const size = await downloadApi.getFileSize(download.id);
+      setActualFileSize(size);
+    } catch (error) {
+      console.error("Failed to get file size:", error);
+      setActualFileSize(null);
     }
   };
 
@@ -223,27 +272,46 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
 
   const dateTime = formatDateTime(download.createdAt);
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Don't select if clicking on buttons or interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('input[type="checkbox"]')) {
+      return;
+    }
+    
+    // Get all download IDs for shift selection (need to pass from parent)
+    toggleSelection(download.id, e.shiftKey, e.ctrlKey || e.metaKey);
+  };
+
+  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const nativeEvent = e.nativeEvent as MouseEvent;
+    toggleSelection(download.id, nativeEvent.shiftKey, nativeEvent.ctrlKey || nativeEvent.metaKey);
+  };
+
   return (
     <>
       {showDetails && <FileDetailsDialog download={download} onClose={() => setShowDetails(false)} />}
       <div 
+        onClick={handleRowClick}
         className={`grid grid-cols-12 gap-4 px-4 py-3 border-b border-gray-800/50 
-                   hover:bg-gray-800/40 transition-all duration-200 group 
-                   ${isSelected ? 'bg-blue-900/20 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}
+                   hover:bg-gray-800/40 transition-all duration-200 group cursor-pointer
+                   ${isRowSelected ? 'bg-blue-900/20 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}
                    ${download.status === 'downloading' ? 'bg-blue-900/5' : ''}`}
       >
         {/* Checkbox */}
         <div className="col-span-1 flex items-center">
           <input
             type="checkbox"
-            checked={isSelected}
-            onChange={(e) => setIsSelected(e.target.checked)}
+            checked={isRowSelected}
+            onChange={handleCheckboxChange}
+            onClick={(e) => e.stopPropagation()}
             className="w-3.5 h-3.5 bg-gray-800 border-gray-600 rounded text-blue-600 
                      focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer"
           />
         </div>
 
-        {/* File Name */}
+        {/* File Name - Shows exact filename with extension */}
         <div className="col-span-4 flex items-center gap-3 min-w-0">
           <button
             onClick={handleOpenLocation}
@@ -256,10 +324,24 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             <p 
               className="text-sm text-white truncate font-medium cursor-pointer hover:text-blue-400 transition-colors"
               onClick={handleFileClick}
-              title={download.fileName || download.url || 'Unknown'}
+              title={`${download.fileName || 'Unknown'}\nSize: ${
+                download.status === 'completed' && actualFileSize !== null
+                  ? formatBytes(actualFileSize)
+                  : download.totalSize 
+                  ? formatBytes(download.totalSize) 
+                  : (download.downloadedSize > 0 ? formatBytes(download.downloadedSize) : 'Unknown')
+              }\nPath: ${download.savePath || 'Not saved yet'}`}
             >
               {download.fileName || download.url?.split('/').pop() || 'Downloading...'}
             </p>
+            {download.fileName && (
+              <p className="text-xs text-gray-500 truncate">
+                {(() => {
+                  const ext = download.fileName.split('.').pop()?.toLowerCase();
+                  return ext ? `.${ext.toUpperCase()} file` : 'Unknown type';
+                })()}
+              </p>
+            )}
             
             {/* Progress bar for downloading files */}
             {download.status === 'downloading' && (
@@ -271,6 +353,29 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
                   />
                 </div>
                 <span className="text-xs text-gray-500 font-medium min-w-[40px] text-right">
+                  {progress.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            
+            {/* Progress bar with pause indicator for paused files */}
+            {download.status === 'paused' && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden relative">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(progress, 100)}%` }}
+                  />
+                  {/* Pause marker - shows where download was paused */}
+                  <div
+                    className="absolute top-0 bottom-0 w-0.5 bg-orange-300 shadow-lg shadow-orange-500/50"
+                    style={{ left: `${Math.min(progress, 100)}%` }}
+                    title={`Paused at ${progress.toFixed(1)}%`}
+                  >
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-orange-400 rounded-full border-2 border-gray-950 shadow-lg shadow-orange-500/50" />
+                  </div>
+                </div>
+                <span className="text-xs text-orange-400 font-medium min-w-[40px] text-right" title={`Paused at ${progress.toFixed(1)}%`}>
                   {progress.toFixed(1)}%
                 </span>
               </div>
@@ -307,10 +412,23 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           </span>
         </div>
 
-        {/* Size - Fixed to show proper sizes */}
+        {/* Size - Shows exact file size */}
         <div className="col-span-1 flex items-center">
-          <span className="text-sm text-gray-300 font-medium tabular-nums">
-            {download.totalSize && download.totalSize > 0 
+          <span 
+            className="text-sm text-gray-300 font-medium tabular-nums"
+            title={
+              download.status === 'completed' && actualFileSize !== null
+                ? `${actualFileSize.toLocaleString()} bytes (actual file size)`
+                : download.totalSize && download.totalSize > 0 
+                ? `${download.totalSize.toLocaleString()} bytes` 
+                : download.downloadedSize > 0 
+                ? `${download.downloadedSize.toLocaleString()} bytes (downloaded)` 
+                : 'Size unknown'
+            }
+          >
+            {download.status === 'completed' && actualFileSize !== null
+              ? formatBytes(actualFileSize)
+              : download.totalSize && download.totalSize > 0 
               ? formatBytes(download.totalSize) 
               : download.downloadedSize > 0 
               ? formatBytes(download.downloadedSize) 
@@ -327,28 +445,86 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           </span>
         </div>
 
-        {/* Added Date/Time - Fixed formatting */}
+        {/* Date/Time - Show completion date for completed, created date for others */}
         <div className="col-span-2 flex flex-col justify-center">
-          <span className="text-xs text-gray-300 font-medium">
-            {dateTime.date}
-          </span>
-          <span className="text-xs text-gray-500 tabular-nums">
-            {dateTime.time}
-          </span>
+          {download.status === 'completed' && download.completedAt ? (
+            <>
+              <span className="text-xs text-gray-300 font-medium">
+                {formatDateTime(download.completedAt).date}
+              </span>
+              <span className="text-xs text-green-400 tabular-nums">
+                Completed: {formatDateTime(download.completedAt).time}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-xs text-gray-300 font-medium">
+                {dateTime.date}
+              </span>
+              <span className="text-xs text-gray-500 tabular-nums">
+                {dateTime.time}
+              </span>
+            </>
+          )}
         </div>
 
         {/* Actions */}
         <div className="col-span-2 flex items-center justify-end gap-1">
-          <button
-            onClick={handleOpenLocation}
-            className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
-                     rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
-                     border border-transparent hover:border-blue-500/30
-                     hover:scale-110 active:scale-95"
-            title="Open folder"
-          >
-            <FolderOpen className="w-4 h-4" />
-          </button>
+          {/* Pause button - only for downloading */}
+          {download.status === 'downloading' && (
+            <button
+              onClick={handlePause}
+              className="p-2 hover:bg-orange-500/20 hover:text-orange-400 text-gray-400 
+                       rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                       border border-transparent hover:border-orange-500/30
+                       hover:scale-110 active:scale-95"
+              title="Pause download"
+            >
+              <Pause className="w-4 h-4" />
+            </button>
+          )}
+          
+          {/* Resume button - only for paused */}
+          {download.status === 'paused' && (
+            <button
+              onClick={handleResume}
+              className="p-2 hover:bg-green-500/20 hover:text-green-400 text-gray-400 
+                       rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                       border border-transparent hover:border-green-500/30
+                       hover:scale-110 active:scale-95"
+              title="Resume download"
+            >
+              <Play className="w-4 h-4" />
+            </button>
+          )}
+          
+          {/* Retry button - only for failed */}
+          {(download.status === 'failed' || download.status === 'cancelled') && (
+            <button
+              onClick={handleRetry}
+              className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+                       rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                       border border-transparent hover:border-blue-500/30
+                       hover:scale-110 active:scale-95"
+              title="Retry download"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+          )}
+          
+          {/* Open folder - for completed downloads */}
+          {download.status === 'completed' && (
+            <button
+              onClick={handleOpenLocation}
+              className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+                       rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                       border border-transparent hover:border-blue-500/30
+                       hover:scale-110 active:scale-95"
+              title="Open folder"
+            >
+              <FolderOpen className="w-4 h-4" />
+            </button>
+          )}
           
           <button
             onClick={() => setShowDetails(true)}

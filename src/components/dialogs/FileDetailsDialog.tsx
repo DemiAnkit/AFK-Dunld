@@ -1,5 +1,5 @@
 // src/components/dialogs/FileDetailsDialog.tsx
-import { X, File, Download as DownloadIcon, Calendar, FolderOpen, Link as LinkIcon, Gauge } from "lucide-react";
+import { X, File, Download as DownloadIcon, Calendar, FolderOpen, Link as LinkIcon, Gauge, CheckCircle } from "lucide-react";
 import { Download } from "../../stores/downloadStore";
 import { formatBytes, formatSpeed } from "../../utils/format";
 import { format } from "date-fns";
@@ -55,6 +55,11 @@ export function FileDetailsDialog({ download, onClose }: FileDetailsDialogProps)
             <div className="flex-1">
               <p className="text-sm text-gray-400">File Name</p>
               <p className="text-white font-medium break-all">{download.fileName || 'Unknown'}</p>
+              {download.fileName && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Extension: .{download.fileName.split('.').pop()?.toLowerCase() || 'unknown'}
+                </p>
+              )}
             </div>
           </div>
 
@@ -76,6 +81,11 @@ export function FileDetailsDialog({ download, onClose }: FileDetailsDialogProps)
                 {download.totalSize ? formatBytes(download.totalSize) : 
                  download.downloadedSize ? formatBytes(download.downloadedSize) : 'Unknown'}
               </p>
+              {download.totalSize && download.totalSize > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {download.totalSize.toLocaleString()} bytes
+                </p>
+              )}
             </div>
           </div>
 
@@ -98,6 +108,17 @@ export function FileDetailsDialog({ download, onClose }: FileDetailsDialogProps)
               <p className="text-white font-medium">{formatDateTime(download.createdAt)}</p>
             </div>
           </div>
+
+          {/* Completed Date/Time */}
+          {download.completedAt && (
+            <div className="flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-400 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm text-gray-400">Completed Date/Time</p>
+                <p className="text-green-400 font-medium">{formatDateTime(download.completedAt)}</p>
+              </div>
+            </div>
+          )}
 
           {/* Location */}
           <div className="flex items-start gap-3">
