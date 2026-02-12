@@ -8,6 +8,8 @@ interface UIState {
   selectedDownloadId: string | null;
   sidebarCollapsed: boolean;
   customCategories: string[];
+  searchQuery: string;
+  viewMode: 'list' | 'grid';
   
   setAddDialogOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -16,6 +18,8 @@ interface UIState {
   toggleSidebar: () => void;
   addCategory: (category: string) => void;
   removeCategory: (category: string) => void;
+  setSearchQuery: (query: string) => void;
+  setViewMode: (mode: 'list' | 'grid') => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -27,6 +31,8 @@ export const useUIStore = create<UIState>()(
       selectedDownloadId: null,
       sidebarCollapsed: false,
       customCategories: [],
+      searchQuery: '',
+      viewMode: 'list',
 
       setAddDialogOpen: (open: boolean) => set({ isAddDialogOpen: open }),
       setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),
@@ -41,6 +47,8 @@ export const useUIStore = create<UIState>()(
         set((state) => ({
           customCategories: state.customCategories.filter((c) => c !== category),
         })),
+      setSearchQuery: (query: string) => set({ searchQuery: query }),
+      setViewMode: (mode: 'list' | 'grid') => set({ viewMode: mode }),
     }),
     {
       name: "afk-dunld-ui-storage",

@@ -231,6 +231,14 @@ export const downloadApi = {
     }
     return await invoke('set_max_concurrent', { max });
   },
+
+  checkFileExists: async (id: string): Promise<boolean> => {
+    if (!isTauri()) {
+      console.log('Mock: checkFileExists called with:', id);
+      return true;
+    }
+    return await invoke<boolean>('check_file_exists', { id });
+  },
 };
 
 // YouTube/Video download commands

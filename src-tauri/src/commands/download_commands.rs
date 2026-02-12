@@ -402,6 +402,25 @@ pub async fn check_is_playlist(url: String) -> Result<bool, String> {
         .map_err(|e| e.to_string())
 }
 
+/// Check if file exists on disk
+#[tauri::command]
+pub async fn check_file_exists(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<bool, String> {
+    let uuid = Uuid::parse_str(&id).map_err(|e| e.to_string())?;
+    
+    if let Some(task) = state.db.get_download(uuid)
+        .await
+        .map_err(|e| e.to_string())? 
+    {
+        let exists = tokio::fs::metadata(&task.save_path).await.is_ok();
+        Ok(exists)
+    } else {
+        Ok(false)
+    }
+}
+
 // YouTube download helper function
 async fn handle_youtube_download(
     app_handle: tauri::AppHandle,
@@ -470,30 +489,42 @@ async fn handle_youtube_download(
         audio_format: request.youtube_audio_format.unwrap_or("mp3".to_string()),
         save_path: save_path.clone(),
         is_playlist: false,  // Default to single video
+        output_filename: Some(file_name.clone()),
     };
 
     let task_clone = task.clone();
     let db = state.db.clone();
     let app_handle_clone = app_handle.clone();
 
-    // Spawn the download task in background
+    // Spawn the download task in background using Tauri's runtime
     // Create a new YouTubeDownloader instance inside the spawn to avoid Send issues
-    tokio::spawn(async move {
+    tauri::async_runtime::spawn(async move {
         let youtube_dl = YouTubeDownloader::new();
         match youtube_dl.download(options).await {
-            Ok(_) => {
+            Ok(final_path) => {
+                tracing::info!("YouTube download completed successfully: {:?}", final_path);
                 let mut completed_task = task_clone;
                 completed_task.status = DownloadStatus::Completed;
                 completed_task.completed_at = Some(chrono::Utc::now().naive_utc());
-                let _ = db.update_download(&completed_task).await;
-                let _ = app_handle_clone.emit("download-complete", &completed_task);
+                completed_task.save_path = final_path;
+                if let Err(e) = db.update_download(&completed_task).await {
+                    tracing::error!("Failed to update completed download in DB: {}", e);
+                }
+                if let Err(e) = app_handle_clone.emit("download-complete", &completed_task) {
+                    tracing::error!("Failed to emit download-complete event: {}", e);
+                }
             }
             Err(e) => {
+                tracing::error!("YouTube download failed: {}", e);
                 let mut failed_task = task_clone;
                 failed_task.status = DownloadStatus::Failed;
                 failed_task.error_message = Some(e.to_string());
-                let _ = db.update_download(&failed_task).await;
-                let _ = app_handle_clone.emit("download-failed", &failed_task);
+                if let Err(e) = db.update_download(&failed_task).await {
+                    tracing::error!("Failed to update failed download in DB: {}", e);
+                }
+                if let Err(e) = app_handle_clone.emit("download-failed", &failed_task) {
+                    tracing::error!("Failed to emit download-failed event: {}", e);
+                }
             }
         }
     });

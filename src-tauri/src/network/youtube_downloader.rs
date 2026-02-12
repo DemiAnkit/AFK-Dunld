@@ -5,6 +5,7 @@ use anyhow::{Result, Context, bail};
 use regex::Regex;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use serde::{Serialize, Deserialize};
+use tracing::{debug, error, info, warn};
 
 pub struct YouTubeDownloader;
 
@@ -17,6 +18,7 @@ pub struct YouTubeDownloadOptions {
     pub audio_format: String,      // "mp3", "aac", "flac", "opus", "m4a"
     pub save_path: PathBuf,
     pub is_playlist: bool,         // Whether to download entire playlist
+    pub output_filename: Option<String>, // Optional specific filename to use
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -76,7 +78,7 @@ impl YouTubeDownloader {
             bail!("Unsupported URL: {}", url);
         }
 
-        tracing::debug!("Fetching available qualities for: {}", url);
+        debug!("Fetching available qualities for: {}", url);
 
         let output = Command::new("yt-dlp")
             .args(&[
@@ -89,7 +91,8 @@ impl YouTubeDownloader {
             .context("Failed to fetch available qualities")?;
 
         if !output.status.success() {
-            bail!("Failed to fetch formats");
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            bail!("Failed to fetch formats: {}", stderr);
         }
 
         let json: serde_json::Value = serde_json::from_slice(&output.stdout)
@@ -147,6 +150,12 @@ impl YouTubeDownloader {
             bail!("yt-dlp is not installed. Please install it from https://github.com/yt-dlp/yt-dlp");
         }
 
+        // Ensure output directory exists
+        if let Some(parent) = options.save_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .context("Failed to create output directory")?;
+        }
+
         let mut args = vec![];
 
         if options.format_type == "audio" {
@@ -181,6 +190,22 @@ impl YouTubeDownloader {
             args.push("--no-playlist");
         }
 
+        // Get output directory
+        let output_dir = options.save_path.parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string());
+        
+        // Use provided filename or fallback to yt-dlp's title template
+        let output_template = if let Some(ref filename) = options.output_filename {
+            // Use the specified filename (without extension, yt-dlp will add it)
+            let name_without_ext = filename.rsplit_once('.')
+                .map(|(name, _)| name)
+                .unwrap_or(filename);
+            format!("{}/{:.100}.%(ext)s", output_dir, name_without_ext)
+        } else {
+            format!("{}/%(title)s.%(ext)s", output_dir)
+        };
+        
         // Common options for better compatibility and performance
         args.extend_from_slice(&[
             "--progress",              // Show progress
@@ -192,12 +217,14 @@ impl YouTubeDownloader {
             "--add-metadata",          // Add metadata to file
             "--embed-thumbnail",       // Embed thumbnail in audio files
             "--encoding", "UTF-8",     // Force UTF-8 encoding
-            "-o", options.save_path.to_str().unwrap_or("download.mp4"),
+            "--retries", "10",         // Retry failed fragments
+            "--fragment-retries", "10",
+            "-o", &output_template,
             &options.url,
         ]);
 
-        tracing::info!("Starting YouTube/video download with yt-dlp");
-        tracing::debug!("yt-dlp args: {:?}", args);
+        info!("Starting YouTube/video download with yt-dlp");
+        debug!("yt-dlp args: {:?}", args);
 
         let output = Command::new("yt-dlp")
             .args(&args)
@@ -211,8 +238,8 @@ impl YouTubeDownloader {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
             
-            tracing::error!("yt-dlp failed with stderr: {}", stderr);
-            tracing::error!("yt-dlp stdout: {}", stdout);
+            error!("yt-dlp failed with stderr: {}", stderr);
+            error!("yt-dlp stdout: {}", stdout);
             
             // Provide user-friendly error messages
             let error_msg = if stderr.contains("HTTP Error 403") {
@@ -223,17 +250,53 @@ impl YouTubeDownloader {
                 "This URL is not supported"
             } else if stderr.contains("Private video") {
                 "This video is private"
-            } else if stderr.contains("Sign in") {
+            } else if stderr.contains("Sign in") || stderr.contains("sign in") {
                 "This video requires signing in to view"
+            } else if stderr.contains("age-restricted") || stderr.contains("age restricted") {
+                "This video is age-restricted"
+            } else if stderr.contains("copyright") {
+                "This video is unavailable due to copyright"
+            } else if stderr.contains("not found") || stderr.contains("404") {
+                "Video not found"
             } else {
-                "Download failed. Check the URL and try again"
+                "Download failed"
             };
             
-            bail!("{}: {}", error_msg, stderr);
+            bail!("{}: {}", error_msg, stderr.lines().next().unwrap_or("Unknown error"));
         }
 
-        tracing::info!("Download completed successfully: {:?}", options.save_path);
-        Ok(options.save_path)
+        // Find the actual downloaded file
+        let output_dir = options.save_path.parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+        
+        let expected_stem = options.output_filename.as_ref()
+            .map(|f| f.rsplit_once('.').map(|(n, _)| n.to_string()).unwrap_or_else(|| f.clone()))
+            .unwrap_or_else(|| "%(title)s".to_string());
+        
+        // Search for the downloaded file in the output directory
+        let mut final_path = options.save_path.clone();
+        match tokio::fs::read_dir(&output_dir).await {
+            Ok(mut entries) => {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    if let Ok(file_name) = entry.file_name().into_string() {
+                        // Check if file starts with our expected stem (truncated to 100 chars by yt-dlp)
+                        let truncated_stem = &expected_stem[..expected_stem.len().min(100)];
+                        if file_name.starts_with(truncated_stem) {
+                            final_path = entry.path();
+                            info!("Found downloaded file: {:?}", final_path);
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Could not read output directory: {}", e);
+            }
+        }
+        
+        info!("Download completed successfully: {:?}", final_path);
+        Ok(final_path)
     }
 
     /// Download with real-time progress tracking
@@ -253,6 +316,12 @@ impl YouTubeDownloader {
         // Check if yt-dlp is installed
         if !Self::check_installation().await? {
             bail!("yt-dlp is not installed. Please install it from https://github.com/yt-dlp/yt-dlp");
+        }
+
+        // Ensure output directory exists
+        if let Some(parent) = options.save_path.parent() {
+            tokio::fs::create_dir_all(parent).await
+                .context("Failed to create output directory")?;
         }
 
         let mut args = vec![];
@@ -286,6 +355,21 @@ impl YouTubeDownloader {
             args.push("--no-playlist");
         }
 
+        // Get output directory
+        let output_dir = options.save_path.parent()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string());
+        
+        // Use provided filename or fallback to yt-dlp's title template
+        let output_template = if let Some(ref filename) = options.output_filename {
+            let name_without_ext = filename.rsplit_once('.')
+                .map(|(name, _)| name)
+                .unwrap_or(filename);
+            format!("{}/{:.100}.%(ext)s", output_dir, name_without_ext)
+        } else {
+            format!("{}/%(title)s.%(ext)s", output_dir)
+        };
+
         args.extend_from_slice(&[
             "--progress",
             "--newline",
@@ -296,11 +380,13 @@ impl YouTubeDownloader {
             "--add-metadata",
             "--embed-thumbnail",
             "--encoding", "UTF-8",
-            "-o", options.save_path.to_str().unwrap_or("download.mp4"),
+            "--retries", "10",
+            "--fragment-retries", "10",
+            "-o", &output_template,
             &options.url,
         ]);
 
-        tracing::info!("Starting download with progress tracking");
+        info!("Starting download with progress tracking");
 
         let mut child = Command::new("yt-dlp")
             .args(&args)
@@ -323,8 +409,26 @@ impl YouTubeDownloader {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            tracing::error!("yt-dlp failed: {}", stderr);
-            bail!("Download failed: {}", stderr);
+            error!("yt-dlp failed: {}", stderr);
+            
+            // Provide user-friendly error
+            let error_msg = if stderr.contains("HTTP Error 403") {
+                "Video is not available or requires authentication"
+            } else if stderr.contains("Video unavailable") {
+                "Video is unavailable or has been removed"
+            } else if stderr.contains("Unsupported URL") {
+                "This URL is not supported"
+            } else if stderr.contains("Private video") {
+                "This video is private"
+            } else if stderr.contains("Sign in") || stderr.contains("sign in") {
+                "This video requires signing in to view"
+            } else if stderr.contains("age-restricted") || stderr.contains("age restricted") {
+                "This video is age-restricted"
+            } else {
+                "Download failed"
+            };
+            
+            bail!("{}: {}", error_msg, stderr.lines().next().unwrap_or("Unknown error"));
         }
 
         // Send final progress
@@ -337,7 +441,35 @@ impl YouTubeDownloader {
             status: "finished".to_string(),
         });
 
-        Ok(options.save_path)
+        // Find the actual downloaded file
+        let output_dir_path = options.save_path.parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+        
+        let expected_stem = options.output_filename.as_ref()
+            .map(|f| f.rsplit_once('.').map(|(n, _)| n.to_string()).unwrap_or_else(|| f.clone()))
+            .unwrap_or_else(|| "%(title)s".to_string());
+        
+        let mut final_path = options.save_path.clone();
+        match tokio::fs::read_dir(&output_dir_path).await {
+            Ok(mut entries) => {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    if let Ok(file_name) = entry.file_name().into_string() {
+                        let truncated_stem = &expected_stem[..expected_stem.len().min(100)];
+                        if file_name.starts_with(truncated_stem) {
+                            final_path = entry.path();
+                            info!("Found downloaded file: {:?}", final_path);
+                            break;
+                        }
+                    }
+                }
+            }
+            Err(e) => {
+                warn!("Could not read output directory: {}", e);
+            }
+        }
+
+        Ok(final_path)
     }
 
     /// Parse progress line from yt-dlp output
@@ -426,7 +558,7 @@ impl YouTubeDownloader {
             bail!("Unsupported URL: {}", url);
         }
 
-        tracing::debug!("Fetching video info for: {}", url);
+        debug!("Fetching video info for: {}", url);
 
         let output = Command::new("yt-dlp")
             .args(&[
@@ -441,8 +573,24 @@ impl YouTubeDownloader {
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            tracing::error!("Failed to get video info: {}", error);
-            bail!("Failed to get video info: {}", error);
+            error!("Failed to get video info: {}", error);
+            
+            // Provide user-friendly error
+            let error_msg = if error.contains("HTTP Error 403") {
+                "Video is not available"
+            } else if error.contains("Video unavailable") {
+                "Video is unavailable or has been removed"
+            } else if error.contains("Unsupported URL") {
+                "This URL is not supported"
+            } else if error.contains("Private video") {
+                "This video is private"
+            } else if error.contains("Sign in") {
+                "This video requires signing in"
+            } else {
+                "Failed to get video info"
+            };
+            
+            bail!("{}", error_msg);
         }
 
         let json: serde_json::Value = serde_json::from_slice(&output.stdout)
@@ -510,8 +658,8 @@ impl YouTubeDownloader {
                     .map(|e| e.len())
             });
 
-        tracing::info!("Video info retrieved: title='{}', duration={}s, filesize={:?}, playlist={}", 
-                      title, duration, filesize, is_playlist);
+        info!("Video info retrieved: title='{}', duration={}s, filesize={:?}, playlist={}", 
+              title, duration, filesize, is_playlist);
 
         Ok(VideoInfo {
             title,
@@ -555,8 +703,6 @@ impl YouTubeDownloader {
             "soundcloud.com",
             "mixcloud.com",
             "bandcamp.com",
-            "pornhub.com",
-            "xvideos.com",
             "bilibili.com",
             "niconico.jp",
             "vk.com",

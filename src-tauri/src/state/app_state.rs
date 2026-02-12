@@ -20,6 +20,7 @@ pub struct ActiveDownload {
 pub type DownloadHandle = ActiveDownload;
 
 /// Global application state managed by Tauri
+#[derive(Clone)]
 pub struct AppState {
     pub db: Database,
     pub engine: Arc<DownloadEngine>,

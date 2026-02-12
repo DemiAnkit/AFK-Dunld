@@ -237,9 +237,13 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
               />
               <button
                 onClick={handleSelectFolder}
-                className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2 font-medium"
+                className="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 
+                         hover:to-blue-600 text-white rounded-xl transition-all duration-200 
+                         flex items-center gap-2 font-semibold shadow-lg shadow-blue-500/25 
+                         hover:shadow-blue-500/40 hover:shadow-xl hover:scale-105 active:scale-95 
+                         border border-blue-500/30 group"
               >
-                <FolderOpen size={18} />
+                <FolderOpen size={18} className="group-hover:scale-110 transition-transform" />
                 Browse
               </button>
             </div>
@@ -250,24 +254,34 @@ export function AddDownloadDialog({ onClose }: AddDownloadDialogProps) {
         <div className="flex justify-end gap-3 p-6 border-t border-gray-800 bg-gray-900/50">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 text-gray-300 hover:bg-gray-800 rounded-lg transition-colors font-medium"
+            className="px-5 py-2.5 text-gray-300 hover:text-white hover:bg-gray-800/80 
+                     rounded-xl transition-all duration-200 font-semibold
+                     border border-transparent hover:border-gray-600/50
+                     hover:scale-105 active:scale-95"
           >
             Cancel
           </button>
           <button
             onClick={handleAddDownload}
             disabled={!url.trim() || loading}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-lg shadow-blue-500/20 disabled:shadow-none"
+            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 
+                     hover:from-blue-500 hover:to-blue-600 
+                     disabled:from-gray-700 disabled:to-gray-800 disabled:cursor-not-allowed 
+                     text-white rounded-xl transition-all duration-200 flex items-center gap-2 
+                     font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 
+                     hover:shadow-xl disabled:shadow-none hover:scale-105 active:scale-95 
+                     disabled:hover:scale-100 disabled:opacity-50 border border-blue-500/30 
+                     disabled:border-gray-600/30 group"
           >
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Adding...
+                <span>Adding...</span>
               </>
             ) : (
               <>
-                <Plus size={18} />
-                Add Download
+                <Plus size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                <span>Add Download</span>
               </>
             )}
           </button>

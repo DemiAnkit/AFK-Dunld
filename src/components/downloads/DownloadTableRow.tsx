@@ -1,10 +1,10 @@
 // src/components/downloads/DownloadTableRow.tsx
 import { Download, useDownloadStore } from "../../stores/downloadStore";
 import { formatBytes, formatSpeed } from "../../utils/format";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
 import { downloadApi } from "../../services/tauriApi";
 import toast from "react-hot-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FileDetailsDialog } from "../dialogs/FileDetailsDialog";
 import { 
   CheckCircle, 
@@ -15,7 +15,8 @@ import {
   Pause,
   FolderOpen,
   Trash2,
-  Info
+  Info,
+  FileWarning
 } from "lucide-react";
 
 interface DownloadTableRowProps {
@@ -25,7 +26,27 @@ interface DownloadTableRowProps {
 export function DownloadTableRow({ download }: DownloadTableRowProps) {
   const [isSelected, setIsSelected] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [fileExists, setFileExists] = useState<boolean | null>(null);
   const { removeDownload } = useDownloadStore();
+
+  // Check if file exists on disk (for completed downloads)
+  useEffect(() => {
+    if (download.status === 'completed' && download.savePath) {
+      checkFileExists();
+    }
+  }, [download.status, download.savePath]);
+
+  const checkFileExists = async () => {
+    try {
+      // We'll check file existence periodically
+      const exists = await downloadApi.checkFileExists(download.id);
+      setFileExists(exists);
+    } catch (error) {
+      // If check fails, assume file exists
+      setFileExists(true);
+    }
+  };
+
   const getFileTypeIcon = (fileName?: string) => {
     if (!fileName) return '📄';
     
@@ -44,29 +65,22 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
 
   const handleOpenLocation = async () => {
     try {
-      // First try the backend API
       await downloadApi.openFileLocation(download.id);
       toast.success("Opening file location...");
     } catch (error) {
-      console.error("Backend command not available, trying fallback:", error);
+      console.error("Failed to open location:", error);
       
       // Fallback: Try to open using file path directly if available
       if (download.savePath) {
         try {
-          // Use Tauri shell plugin as fallback
           const { open } = await import('@tauri-apps/plugin-shell');
-          
-          // Detect platform and use appropriate command
           const platform = window.navigator.platform.toLowerCase();
           
           if (platform.includes('win')) {
-            // Windows
             await open(`explorer /select,"${download.savePath}"`);
           } else if (platform.includes('mac')) {
-            // macOS
             await open(`open -R "${download.savePath}"`);
           } else {
-            // Linux - open containing folder
             const folderPath = download.savePath.substring(0, download.savePath.lastIndexOf('/'));
             await open(`xdg-open "${folderPath}"`);
           }
@@ -74,7 +88,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           toast.success("Opening file location...");
         } catch (fallbackError) {
           console.error("Fallback failed:", fallbackError);
-          toast.error("Failed to open file location. Backend command not implemented yet.");
+          toast.error("Failed to open file location");
         }
       } else {
         toast.error("File path not available");
@@ -91,171 +105,274 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
   const getStatusDisplay = () => {
     switch (download.status) {
       case 'completed':
-        return { icon: <CheckCircle className="w-4 h-4 text-green-400" />, text: 'Completed', color: 'text-green-400' };
+        return { 
+          icon: <CheckCircle className="w-4 h-4 text-green-400" />, 
+          text: 'Completed', 
+          color: 'text-green-400',
+          bgColor: 'bg-green-400/10'
+        };
       case 'downloading':
-        return { icon: <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />, text: 'Downloading', color: 'text-blue-400' };
+        return { 
+          icon: <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />, 
+          text: 'Downloading', 
+          color: 'text-blue-400',
+          bgColor: 'bg-blue-400/10'
+        };
       case 'paused':
-        return { icon: <Pause className="w-4 h-4 text-orange-400" />, text: 'Paused', color: 'text-orange-400' };
+        return { 
+          icon: <Pause className="w-4 h-4 text-orange-400" />, 
+          text: 'Paused', 
+          color: 'text-orange-400',
+          bgColor: 'bg-orange-400/10'
+        };
       case 'failed':
-        return { icon: <AlertCircle className="w-4 h-4 text-red-400" />, text: 'Failed', color: 'text-red-400' };
+        return { 
+          icon: <AlertCircle className="w-4 h-4 text-red-400" />, 
+          text: 'Failed', 
+          color: 'text-red-400',
+          bgColor: 'bg-red-400/10'
+        };
       case 'cancelled':
-        return { icon: <XCircle className="w-4 h-4 text-gray-400" />, text: 'Cancelled', color: 'text-gray-400' };
+        return { 
+          icon: <XCircle className="w-4 h-4 text-gray-400" />, 
+          text: 'Cancelled', 
+          color: 'text-gray-400',
+          bgColor: 'bg-gray-400/10'
+        };
       case 'queued':
-        return { icon: <Clock className="w-4 h-4 text-yellow-400" />, text: 'Queued', color: 'text-yellow-400' };
+        return { 
+          icon: <Clock className="w-4 h-4 text-yellow-400" />, 
+          text: 'Queued', 
+          color: 'text-yellow-400',
+          bgColor: 'bg-yellow-400/10'
+        };
       case 'connecting':
-        return { icon: <Loader2 className="w-4 h-4 text-blue-300 animate-spin" />, text: 'Connecting', color: 'text-blue-300' };
+        return { 
+          icon: <Loader2 className="w-4 h-4 text-blue-300 animate-spin" />, 
+          text: 'Connecting', 
+          color: 'text-blue-300',
+          bgColor: 'bg-blue-300/10'
+        };
       default:
-        return { icon: <Clock className="w-4 h-4 text-gray-400" />, text: download.status, color: 'text-gray-400' };
+        return { 
+          icon: <Clock className="w-4 h-4 text-gray-400" />, 
+          text: download.status, 
+          color: 'text-gray-400',
+          bgColor: 'bg-gray-400/10'
+        };
     }
   };
 
-  const formatDateTime = (dateString?: string) => {
-    if (!dateString) return { date: '-', time: '-' };
+  // Improved date/time formatting with better error handling
+  const formatDateTime = (dateString?: string | Date | null): { date: string; time: string; full: string } => {
+    if (!dateString) {
+      return { date: '-', time: '-', full: '-' };
+    }
     
     try {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return { date: '-', time: '-' };
+      let date: Date;
+      
+      // Handle different date formats
+      if (dateString instanceof Date) {
+        date = dateString;
+      } else if (typeof dateString === 'string') {
+        // Try parsing ISO string first
+        date = parseISO(dateString);
+        
+        // If not valid, try standard Date parsing
+        if (!isValid(date)) {
+          date = new Date(dateString);
+        }
+      } else {
+        return { date: '-', time: '-', full: '-' };
       }
+      
+      // Validate the date
+      if (!isValid(date) || isNaN(date.getTime())) {
+        return { date: '-', time: '-', full: '-' };
+      }
+      
       return {
         date: format(date, 'MMM dd, yyyy'),
-        time: format(date, 'HH:mm:ss')
+        time: format(date, 'HH:mm:ss'),
+        full: format(date, 'MMM dd, yyyy HH:mm:ss')
       };
-    } catch {
-      return { date: '-', time: '-' };
+    } catch (error) {
+      console.error('Date formatting error:', error, 'Input:', dateString);
+      return { date: '-', time: '-', full: '-' };
     }
   };
 
   const status = getStatusDisplay();
-  const progress = download.totalSize
+  const progress = download.totalSize && download.totalSize > 0
     ? (download.downloadedSize / download.totalSize) * 100
     : 0;
 
   const handleDelete = async () => {
-    if (window.confirm(`Delete "${download.fileName || 'this download'}"?`)) {
+    const fileName = download.fileName || download.url?.split('/').pop() || 'this download';
+    if (window.confirm(`Delete "${fileName}"?\n\nThis will remove the download from the list.`)) {
       try {
         await removeDownload(download.id, false);
+        toast.success("Download removed from list");
       } catch (error) {
         console.error("Failed to delete:", error);
+        toast.error("Failed to remove download");
       }
     }
   };
 
+  const dateTime = formatDateTime(download.createdAt);
+
   return (
     <>
       {showDetails && <FileDetailsDialog download={download} onClose={() => setShowDetails(false)} />}
-      <div className={`grid grid-cols-12 gap-4 px-4 py-3 border-b border-gray-800/50 hover:bg-gray-900/30 transition-colors group ${isSelected ? 'bg-blue-900/20' : ''}`}>
-      {/* Checkbox */}
-      <div className="col-span-1 flex items-center">
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={(e) => setIsSelected(e.target.checked)}
-          className="w-3.5 h-3.5 bg-gray-700 border-gray-600 rounded text-blue-600 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* File Name */}
-      <div className="col-span-4 flex items-center gap-3 min-w-0">
-        <button
-          onClick={handleOpenLocation}
-          className="text-xl flex-shrink-0 hover:scale-110 transition-transform cursor-pointer"
-          title="Open file location"
-        >
-          {getFileTypeIcon(download.fileName)}
-        </button>
-        <div className="min-w-0 flex-1">
-          <p 
-            className="text-sm text-white truncate font-medium cursor-pointer hover:text-blue-400 transition-colors"
-            onClick={handleFileClick}
-            title={download.fileName || download.url || 'Unknown'}
-          >
-            {download.fileName || download.url?.split('/').pop() || 'Downloading...'}
-          </p>
-          {download.status === 'downloading' && (
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all"
-                  style={{ width: `${Math.min(progress, 100)}%` }}
-                />
-              </div>
-              <span className="text-xs text-gray-500">{progress.toFixed(1)}%</span>
-            </div>
-          )}
+      <div 
+        className={`grid grid-cols-12 gap-4 px-4 py-3 border-b border-gray-800/50 
+                   hover:bg-gray-800/40 transition-all duration-200 group 
+                   ${isSelected ? 'bg-blue-900/20 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}
+                   ${download.status === 'downloading' ? 'bg-blue-900/5' : ''}`}
+      >
+        {/* Checkbox */}
+        <div className="col-span-1 flex items-center">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => setIsSelected(e.target.checked)}
+            className="w-3.5 h-3.5 bg-gray-800 border-gray-600 rounded text-blue-600 
+                     focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer"
+          />
         </div>
-        {download.status === 'completed' && (
+
+        {/* File Name */}
+        <div className="col-span-4 flex items-center gap-3 min-w-0">
           <button
             onClick={handleOpenLocation}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-800 rounded"
+            className="text-xl flex-shrink-0 hover:scale-110 transition-transform cursor-pointer"
+            title="Open file location"
+          >
+            {getFileTypeIcon(download.fileName)}
+          </button>
+          <div className="min-w-0 flex-1">
+            <p 
+              className="text-sm text-white truncate font-medium cursor-pointer hover:text-blue-400 transition-colors"
+              onClick={handleFileClick}
+              title={download.fileName || download.url || 'Unknown'}
+            >
+              {download.fileName || download.url?.split('/').pop() || 'Downloading...'}
+            </p>
+            
+            {/* Progress bar for downloading files */}
+            {download.status === 'downloading' && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(progress, 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500 font-medium min-w-[40px] text-right">
+                  {progress.toFixed(1)}%
+                </span>
+              </div>
+            )}
+            
+            {/* Warning for missing files */}
+            {download.status === 'completed' && fileExists === false && (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-orange-400">
+                <FileWarning className="w-3.5 h-3.5" />
+                <span>File not found on disk</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Quick action for completed downloads */}
+          {download.status === 'completed' && (
+            <button
+              onClick={handleOpenLocation}
+              className="opacity-0 group-hover:opacity-100 transition-all duration-200 
+                       p-1.5 hover:bg-gray-700 rounded-lg"
+              title="Open folder"
+            >
+              <FolderOpen className="w-4 h-4 text-blue-400" />
+            </button>
+          )}
+        </div>
+
+        {/* Status */}
+        <div className="col-span-1 flex items-center">
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium
+                         ${status.bgColor} ${status.color} border border-opacity-20`}>
+            {status.icon}
+            <span className="hidden sm:inline">{status.text}</span>
+          </span>
+        </div>
+
+        {/* Size - Fixed to show proper sizes */}
+        <div className="col-span-1 flex items-center">
+          <span className="text-sm text-gray-300 font-medium tabular-nums">
+            {download.totalSize && download.totalSize > 0 
+              ? formatBytes(download.totalSize) 
+              : download.downloadedSize > 0 
+              ? formatBytes(download.downloadedSize) 
+              : '-'}
+          </span>
+        </div>
+
+        {/* Speed */}
+        <div className="col-span-1 flex items-center">
+          <span className="text-sm text-blue-400 font-medium tabular-nums">
+            {download.status === 'downloading' && download.speed && download.speed > 0 
+              ? formatSpeed(download.speed) 
+              : '-'}
+          </span>
+        </div>
+
+        {/* Added Date/Time - Fixed formatting */}
+        <div className="col-span-2 flex flex-col justify-center">
+          <span className="text-xs text-gray-300 font-medium">
+            {dateTime.date}
+          </span>
+          <span className="text-xs text-gray-500 tabular-nums">
+            {dateTime.time}
+          </span>
+        </div>
+
+        {/* Actions */}
+        <div className="col-span-2 flex items-center justify-end gap-1">
+          <button
+            onClick={handleOpenLocation}
+            className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+                     rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                     border border-transparent hover:border-blue-500/30
+                     hover:scale-110 active:scale-95"
             title="Open folder"
           >
-            <FolderOpen className="w-4 h-4 text-blue-400" />
+            <FolderOpen className="w-4 h-4" />
           </button>
-        )}
+          
+          <button
+            onClick={() => setShowDetails(true)}
+            className="p-2 hover:bg-gray-700/80 hover:text-white text-gray-400 
+                     rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                     border border-transparent hover:border-gray-500/30
+                     hover:scale-110 active:scale-95"
+            title="View details"
+          >
+            <Info className="w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={handleDelete}
+            className="p-2 hover:bg-red-500/20 hover:text-red-400 text-gray-400 
+                     rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
+                     border border-transparent hover:border-red-500/30
+                     hover:scale-110 active:scale-95"
+            title="Remove from list"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-
-      {/* Status */}
-      <div className="col-span-1 flex items-center gap-2">
-        {status.icon}
-        <span className={`text-xs ${status.color}`}>{status.text}</span>
-      </div>
-
-      {/* Size */}
-      <div className="col-span-1 flex items-center">
-        <span className="text-sm text-white font-semibold">
-          {download.totalSize && download.totalSize > 0 
-            ? formatBytes(download.totalSize) 
-            : download.downloadedSize && download.downloadedSize > 0 
-            ? formatBytes(download.downloadedSize) 
-            : '-'}
-        </span>
-      </div>
-
-      {/* Speed */}
-      <div className="col-span-1 flex items-center">
-        <span className="text-sm text-blue-400">
-          {download.status === 'downloading' && download.speed ? formatSpeed(download.speed) : '-'}
-        </span>
-      </div>
-
-      {/* Added Date/Time */}
-      <div className="col-span-2 flex flex-col">
-        <span className="text-xs text-gray-300 font-medium">
-          {formatDateTime(download.createdAt).date}
-        </span>
-        <span className="text-xs text-gray-500">
-          {formatDateTime(download.createdAt).time}
-        </span>
-      </div>
-
-      {/* Actions */}
-      <div className="col-span-2 flex items-center gap-2">
-        <button
-          onClick={handleOpenLocation}
-          className="p-1.5 hover:bg-gray-800 rounded transition-colors opacity-0 group-hover:opacity-100"
-          title="Open folder"
-        >
-          <FolderOpen className="w-4 h-4 text-blue-400" />
-        </button>
-        
-        <button
-          onClick={() => setShowDetails(true)}
-          className="p-1.5 hover:bg-gray-800 rounded transition-colors opacity-0 group-hover:opacity-100"
-          title="View details"
-        >
-          <Info className="w-4 h-4 text-gray-400" />
-        </button>
-        
-        <button
-          onClick={handleDelete}
-          className="p-1.5 hover:bg-gray-800 rounded transition-colors opacity-0 group-hover:opacity-100"
-          title="Delete"
-        >
-          <Trash2 className="w-4 h-4 text-red-400" />
-        </button>
-      </div>
-    </div>
     </>
   );
 }

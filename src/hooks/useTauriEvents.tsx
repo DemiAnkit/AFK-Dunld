@@ -54,8 +54,25 @@ export function useDownloadEvents() {
         );
         listeners.push(unlisten4);
 
+        // File deleted from disk
+        const unlisten5 = await listen<{ id: string; file_name: string; message: string }>(
+          "file-deleted",
+          (event) => {
+            toast(
+              `⚠️ "${event.payload.file_name}" was deleted from the download folder`,
+              { 
+                duration: 5000,
+                icon: '⚠️'
+              }
+            );
+            // Refresh downloads to get updated status
+            fetchDownloads();
+          }
+        );
+        listeners.push(unlisten5);
+
         // Clipboard URL detected
-        const unlisten5 = await listen<string>(
+        const unlisten6 = await listen<string>(
           "clipboard-url-detected",
           (event) => {
             toast(
@@ -83,17 +100,17 @@ export function useDownloadEvents() {
             );
           }
         );
-        listeners.push(unlisten5);
+        listeners.push(unlisten6);
 
         // Global speed update (optional - for status bar)
-        const unlisten6 = await listen<number>(
+        const unlisten7 = await listen<number>(
           "global-speed-update",
           (event) => {
             // You can add this to UI store if needed
             console.log("Global speed:", event.payload);
           }
         );
-        listeners.push(unlisten6);
+        listeners.push(unlisten7);
 
       } catch (error) {
         console.error("Failed to setup event listeners:", error);

@@ -12,7 +12,6 @@ mod events;
 
 use tauri::Manager;
 use state::app_state::AppState;
-use commands::download_commands;
 
 fn main() {
     tracing_subscriber::fmt()
@@ -41,45 +40,51 @@ fn main() {
                 AppState::new(app_data_dir).await.expect("Failed to initialize app state")
             });
 
-            app.manage(app_state);
+            app.manage(app_state.clone());
 
             // Setup system tray
             services::tray_service::setup_tray(app)?;
 
             // Start clipboard monitor
             let handle = app.handle().clone();
+            let _state_clone = app_state.clone();
             tauri::async_runtime::spawn(async move {
                 services::clipboard_service::start_monitoring(handle).await;
             });
+
+            // Start file watcher service
+            let handle = app.handle().clone();
+            services::file_watcher::FileWatcher::start(handle, app_state);
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             // Download commands
-            download_commands::add_download,
-            download_commands::pause_download,
-            download_commands::resume_download,
-            download_commands::cancel_download,
-            download_commands::remove_download,
-            download_commands::retry_download,
-            download_commands::get_all_downloads,
-            download_commands::get_file_info,
-            download_commands::add_batch_downloads,
-            download_commands::get_download_progress,
-            download_commands::pause_all,
-            download_commands::resume_all,
-            download_commands::cancel_all,
-            download_commands::open_file,
-            download_commands::open_file_location,
-            download_commands::get_global_stats,
-            download_commands::set_speed_limit,
-            download_commands::get_queue_info,
-            download_commands::set_max_concurrent,
+            commands::download_commands::add_download,
+            commands::download_commands::pause_download,
+            commands::download_commands::resume_download,
+            commands::download_commands::cancel_download,
+            commands::download_commands::remove_download,
+            commands::download_commands::retry_download,
+            commands::download_commands::get_all_downloads,
+            commands::download_commands::get_file_info,
+            commands::download_commands::add_batch_downloads,
+            commands::download_commands::get_download_progress,
+            commands::download_commands::pause_all,
+            commands::download_commands::resume_all,
+            commands::download_commands::cancel_all,
+            commands::download_commands::open_file,
+            commands::download_commands::open_file_location,
+            commands::download_commands::get_global_stats,
+            commands::download_commands::set_speed_limit,
+            commands::download_commands::get_queue_info,
+            commands::download_commands::set_max_concurrent,
+            commands::download_commands::check_file_exists,
             // YouTube/video download commands
-            download_commands::check_ytdlp_installed,
-            download_commands::get_video_info,
-            download_commands::get_video_qualities,
-            download_commands::check_is_playlist,
+            commands::download_commands::check_ytdlp_installed,
+            commands::download_commands::get_video_info,
+            commands::download_commands::get_video_qualities,
+            commands::download_commands::check_is_playlist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running application");
