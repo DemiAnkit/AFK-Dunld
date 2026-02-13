@@ -65,6 +65,7 @@ impl SpeedLimiter {
     }
 
     /// Set new speed limit
+    #[allow(dead_code)]
     pub async fn set_limit(&self, limit: Option<u64>) {
         *self.limit.write().await = limit;
         *self.bytes_in_window.write().await = 0;

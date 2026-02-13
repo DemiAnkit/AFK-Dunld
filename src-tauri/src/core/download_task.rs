@@ -61,6 +61,7 @@ impl std::fmt::Display for DownloadStatus {
 
 /// A single download task
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadTask {
     /// Unique identifier
     pub id: Uuid,
@@ -138,6 +139,7 @@ pub struct DownloadTask {
 
 /// Progress of a single segment
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SegmentProgress {
     pub segment_id: u32,
     pub start_byte: u64,
@@ -157,6 +159,7 @@ pub enum SegmentStatus {
 
 /// Progress event sent to the frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProgressEvent {
     pub id: Uuid,
     pub downloaded_size: u64,
@@ -170,6 +173,7 @@ pub struct ProgressEvent {
 
 /// Download progress information
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadProgress {
     pub id: Uuid,
     pub downloaded_size: u64,
@@ -183,6 +187,7 @@ pub struct DownloadProgress {
 
 /// File information from URL
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FileInfo {
     pub file_name: String,
     pub total_size: Option<u64>,

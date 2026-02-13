@@ -92,6 +92,7 @@ impl ChunkManager {
     }
 
     /// Re-split chunks for resume, accounting for already downloaded bytes
+    #[allow(dead_code)]
     pub fn split_for_resume(
         total_size: u64,
         segments: u8,

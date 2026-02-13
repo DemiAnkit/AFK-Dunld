@@ -340,26 +340,140 @@ pub async fn get_download_progress(
 
 #[tauri::command]
 pub async fn pause_all(
-    _state: State<'_, AppState>,
-) -> Result<(), String> {
-    // TODO: Implement
-    Ok(())
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let mut paused_ids = Vec::new();
+    
+    // Get all active download IDs
+    let active_ids: Vec<Uuid> = {
+        let active = state.active_downloads.read().await;
+        active.keys().copied().collect()
+    };
+    
+    // Pause each active download
+    for uuid in active_ids {
+        let mut active = state.active_downloads.write().await;
+        if let Some(handle) = active.remove(&uuid) {
+            handle.cancel_token.cancel();
+            drop(active); // Release lock before database operation
+            
+            // Update database status
+            if let Err(e) = state.db.update_status(uuid, DownloadStatus::Paused).await {
+                tracing::error!("Failed to update status for {}: {}", uuid, e);
+                continue;
+            }
+            
+            // Get updated task and emit event
+            if let Ok(Some(task)) = state.db.get_download(uuid).await {
+                let _ = app_handle.emit("download-paused", &task);
+            }
+            
+            paused_ids.push(uuid.to_string());
+        }
+    }
+    
+    tracing::info!("Paused {} downloads", paused_ids.len());
+    Ok(paused_ids)
 }
 
 #[tauri::command]
 pub async fn resume_all(
-    _state: State<'_, AppState>,
-) -> Result<(), String> {
-    // TODO: Implement
-    Ok(())
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let mut resumed_ids = Vec::new();
+    
+    // Get all paused downloads from database
+    let all_downloads = state.db.get_all_downloads()
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let paused_downloads: Vec<DownloadTask> = all_downloads
+        .into_iter()
+        .filter(|task| task.status == DownloadStatus::Paused)
+        .collect();
+    
+    // Resume each paused download
+    for mut task in paused_downloads {
+        // Update status to downloading
+        task.status = DownloadStatus::Downloading;
+        
+        if let Err(e) = state.db.update_download(&task).await {
+            tracing::error!("Failed to update task {}: {}", task.id, e);
+            continue;
+        }
+        
+        // Emit event so UI updates immediately
+        let _ = app_handle.emit("download-resumed", &task);
+        
+        // Re-start download with resume
+        if let Err(e) = spawn_download_task(app_handle.clone(), &state, task.clone()).await {
+            tracing::error!("Failed to spawn download {}: {}", task.id, e);
+            continue;
+        }
+        
+        resumed_ids.push(task.id.to_string());
+    }
+    
+    tracing::info!("Resumed {} downloads", resumed_ids.len());
+    Ok(resumed_ids)
 }
 
 #[tauri::command]
 pub async fn cancel_all(
-    _state: State<'_, AppState>,
-) -> Result<(), String> {
-    // TODO: Implement
-    Ok(())
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let mut cancelled_ids = Vec::new();
+    
+    // Get all active download IDs
+    let active_ids: Vec<Uuid> = {
+        let active = state.active_downloads.read().await;
+        active.keys().copied().collect()
+    };
+    
+    // Cancel each active download
+    for uuid in active_ids {
+        let mut active = state.active_downloads.write().await;
+        if let Some(handle) = active.remove(&uuid) {
+            handle.cancel_token.cancel();
+            drop(active); // Release lock before database operation
+            
+            // Update database status
+            if let Err(e) = state.db.update_status(uuid, DownloadStatus::Cancelled).await {
+                tracing::error!("Failed to update status for {}: {}", uuid, e);
+                continue;
+            }
+            
+            // Get updated task and emit event
+            if let Ok(Some(task)) = state.db.get_download(uuid).await {
+                let _ = app_handle.emit("download-cancelled", &task);
+            }
+            
+            cancelled_ids.push(uuid.to_string());
+        }
+    }
+    
+    // Also clear the queue
+    {
+        let mut queue = state.queue.write().await;
+        let queued = queue.get_queue();
+        for uuid in queued {
+            if let Err(e) = state.db.update_status(uuid, DownloadStatus::Cancelled).await {
+                tracing::error!("Failed to cancel queued download {}: {}", uuid, e);
+            } else {
+                cancelled_ids.push(uuid.to_string());
+            }
+        }
+        // Remove all from queue
+        for uuid in queue.get_queue() {
+            queue.remove(uuid);
+        }
+    }
+    
+    tracing::info!("Cancelled {} downloads", cancelled_ids.len());
+    Ok(cancelled_ids)
 }
 
 #[tauri::command]
@@ -481,37 +595,137 @@ pub async fn open_file_location(
     result
 }
 
+/// Global download statistics
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct GlobalStats {
+    pub total_downloads: u32,
+    pub active_downloads: u32,
+    pub queued_downloads: u32,
+    pub completed_downloads: u32,
+    pub failed_downloads: u32,
+    pub paused_downloads: u32,
+    pub total_downloaded_bytes: u64,
+    pub total_size_bytes: u64,
+    pub current_speed: f64,
+    pub estimated_time_remaining: Option<u64>,
+}
+
 #[tauri::command]
 pub async fn get_global_stats(
-    _state: State<'_, AppState>,
-) -> Result<serde_json::Value, String> {
-    // TODO: Implement
-    Ok(serde_json::json!({}))
+    state: State<'_, AppState>,
+) -> Result<GlobalStats, String> {
+    // Get all downloads from database
+    let all_downloads = state.db.get_all_downloads()
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    // Count downloads by status
+    let mut stats = GlobalStats {
+        total_downloads: all_downloads.len() as u32,
+        active_downloads: 0,
+        queued_downloads: 0,
+        completed_downloads: 0,
+        failed_downloads: 0,
+        paused_downloads: 0,
+        total_downloaded_bytes: 0,
+        total_size_bytes: 0,
+        current_speed: 0.0,
+        estimated_time_remaining: None,
+    };
+    
+    let mut remaining_bytes = 0u64;
+    
+    for task in &all_downloads {
+        // Count by status
+        match task.status {
+            DownloadStatus::Downloading | DownloadStatus::Connecting => {
+                stats.active_downloads += 1;
+                stats.current_speed += task.speed;
+            }
+            DownloadStatus::Queued => stats.queued_downloads += 1,
+            DownloadStatus::Completed => stats.completed_downloads += 1,
+            DownloadStatus::Failed => stats.failed_downloads += 1,
+            DownloadStatus::Paused => stats.paused_downloads += 1,
+            _ => {}
+        }
+        
+        // Accumulate bytes
+        stats.total_downloaded_bytes += task.downloaded_size;
+        if let Some(total) = task.total_size {
+            stats.total_size_bytes += total;
+            
+            // Calculate remaining bytes for active/queued downloads
+            if matches!(task.status, DownloadStatus::Downloading | DownloadStatus::Queued | DownloadStatus::Paused) {
+                remaining_bytes += total.saturating_sub(task.downloaded_size);
+            }
+        }
+    }
+    
+    // Calculate ETA if there's active speed
+    if stats.current_speed > 0.0 && remaining_bytes > 0 {
+        stats.estimated_time_remaining = Some((remaining_bytes as f64 / stats.current_speed) as u64);
+    }
+    
+    Ok(stats)
 }
 
 #[tauri::command]
 pub async fn set_speed_limit(
-    _state: State<'_, AppState>,
-    _limit: Option<u64>,
+    state: State<'_, AppState>,
+    limit: Option<u64>,
 ) -> Result<(), String> {
-    // TODO: Implement
+    // Update the speed limiter in the download engine
+    state.engine.speed_limiter.set_limit(limit).await;
+    
+    tracing::info!(
+        "Global speed limit set to: {}",
+        limit.map(|l| format!("{} bytes/s", l))
+            .unwrap_or_else(|| "Unlimited".to_string())
+    );
+    
     Ok(())
 }
 
 #[tauri::command]
 pub async fn get_queue_info(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    // TODO: Implement
-    Ok(serde_json::json!({}))
+    let queue = state.queue.read().await;
+    let info = queue.info();
+    Ok(serde_json::to_value(&info).map_err(|e| e.to_string())?)
 }
 
 #[tauri::command]
 pub async fn set_max_concurrent(
-    _state: State<'_, AppState>,
-    _max: usize,
+    app_handle: tauri::AppHandle,
+    state: State<'_, AppState>,
+    max: usize,
 ) -> Result<(), String> {
-    // TODO: Implement
+    let mut queue = state.queue.write().await;
+    let to_start = queue.set_max_concurrent(max as u32);
+    drop(queue); // Release lock before spawning tasks
+    
+    // Start the newly dequeued downloads
+    for uuid in to_start {
+        if let Ok(Some(mut task)) = state.db.get_download(uuid).await {
+            task.status = DownloadStatus::Downloading;
+            
+            if let Err(e) = state.db.update_download(&task).await {
+                tracing::error!("Failed to update task {}: {}", uuid, e);
+                continue;
+            }
+            
+            // Emit event
+            let _ = app_handle.emit("download-started", &task);
+            
+            // Start the download
+            if let Err(e) = spawn_download_task(app_handle.clone(), &state, task).await {
+                tracing::error!("Failed to spawn download {}: {}", uuid, e);
+            }
+        }
+    }
+    
+    tracing::info!("Max concurrent downloads set to {}", max);
     Ok(())
 }
 

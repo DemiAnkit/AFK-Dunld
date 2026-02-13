@@ -1,9 +1,50 @@
-import { Plus, FolderOpen, Settings, MoreVertical, Search, Download, Pause, Play, Trash2 } from 'lucide-react';
+import { Plus, FolderOpen, Settings, MoreVertical, Search, Download, Pause, Play, StopCircle } from 'lucide-react';
 import { useState } from 'react';
 import { AddDownloadDialog } from '../downloads/AddDownloadDialog';
+import { pauseAll, resumeAll, cancelAll } from '../../services/phase1Api';
+import { toast } from 'react-hot-toast';
 
 export const Toolbar = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handlePauseAll = async () => {
+    try {
+      setIsProcessing(true);
+      const pausedIds = await pauseAll();
+      toast.success(`Paused ${pausedIds.length} download(s)`);
+    } catch (error) {
+      toast.error(`Failed to pause downloads: ${error}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleResumeAll = async () => {
+    try {
+      setIsProcessing(true);
+      const resumedIds = await resumeAll();
+      toast.success(`Resumed ${resumedIds.length} download(s)`);
+    } catch (error) {
+      toast.error(`Failed to resume downloads: ${error}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCancelAll = async () => {
+    if (!confirm('Are you sure you want to cancel all downloads?')) return;
+    
+    try {
+      setIsProcessing(true);
+      const cancelledIds = await cancelAll();
+      toast.success(`Cancelled ${cancelledIds.length} download(s)`);
+    } catch (error) {
+      toast.error(`Failed to cancel downloads: ${error}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <>
@@ -36,25 +77,37 @@ export const Toolbar = () => {
             <Download size={18} />
           </button>
           
-          <button className="p-2 text-gray-400 hover:text-orange-400 hover:bg-orange-500/10 
-                           rounded-xl transition-all duration-200 border border-transparent
-                           hover:border-orange-500/30 hover:scale-110 active:scale-95"
-                  title="Pause">
+          <button 
+            onClick={handlePauseAll}
+            disabled={isProcessing}
+            className="p-2 text-gray-400 hover:text-orange-400 hover:bg-orange-500/10 
+                     rounded-xl transition-all duration-200 border border-transparent
+                     hover:border-orange-500/30 hover:scale-110 active:scale-95
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Pause All Downloads">
             <Pause size={18} />
           </button>
           
-          <button className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/10 
-                           rounded-xl transition-all duration-200 border border-transparent
-                           hover:border-green-500/30 hover:scale-110 active:scale-95"
-                  title="Play">
+          <button 
+            onClick={handleResumeAll}
+            disabled={isProcessing}
+            className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/10 
+                     rounded-xl transition-all duration-200 border border-transparent
+                     hover:border-green-500/30 hover:scale-110 active:scale-95
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Resume All Downloads">
             <Play size={18} />
           </button>
           
-          <button className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 
-                           rounded-xl transition-all duration-200 border border-transparent
-                           hover:border-red-500/30 hover:scale-110 active:scale-95"
-                  title="Delete">
-            <Trash2 size={18} />
+          <button 
+            onClick={handleCancelAll}
+            disabled={isProcessing}
+            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 
+                     rounded-xl transition-all duration-200 border border-transparent
+                     hover:border-red-500/30 hover:scale-110 active:scale-95
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Cancel All Downloads">
+            <StopCircle size={18} />
           </button>
         </div>
 

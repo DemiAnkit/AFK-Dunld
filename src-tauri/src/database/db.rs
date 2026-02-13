@@ -88,6 +88,25 @@ impl Database {
             ))
         })?;
 
+        // Create settings table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            "#,
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| {
+            DownloadError::Unknown(format!(
+                "Settings table creation failed: {}",
+                e
+            ))
+        })?;
+
         Ok(())
     }
 
@@ -331,6 +350,64 @@ impl Database {
                 .and_then(|s| serde_json::from_str(&s).ok())
                 .unwrap_or_default(),
         }
+    }
+
+    // ========== Settings Operations ==========
+
+    /// Get a setting value by key
+    pub async fn get_setting(&self, key: &str) -> Result<Option<String>, DownloadError> {
+        let result: Option<(String,)> = sqlx::query_as(
+            "SELECT value FROM settings WHERE key = ?1"
+        )
+        .bind(key)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to get setting: {}", e)))?;
+
+        Ok(result.map(|r| r.0))
+    }
+
+    /// Set a setting value
+    pub async fn set_setting(&self, key: &str, value: &str) -> Result<(), DownloadError> {
+        sqlx::query(
+            r#"
+            INSERT INTO settings (key, value, updated_at)
+            VALUES (?1, ?2, datetime('now'))
+            ON CONFLICT(key) DO UPDATE SET
+                value = ?2,
+                updated_at = datetime('now')
+            "#
+        )
+        .bind(key)
+        .bind(value)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to set setting: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Get all settings as a key-value map
+    pub async fn get_all_settings(&self) -> Result<std::collections::HashMap<String, String>, DownloadError> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            "SELECT key, value FROM settings"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to get all settings: {}", e)))?;
+
+        Ok(rows.into_iter().collect())
+    }
+
+    /// Delete a setting
+    pub async fn delete_setting(&self, key: &str) -> Result<(), DownloadError> {
+        sqlx::query("DELETE FROM settings WHERE key = ?1")
+            .bind(key)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DownloadError::Unknown(format!("Failed to delete setting: {}", e)))?;
+
+        Ok(())
     }
 }
 

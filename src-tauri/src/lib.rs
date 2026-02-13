@@ -89,6 +89,26 @@ pub fn run() {
             commands::download_commands::set_speed_limit,
             commands::download_commands::get_queue_info,
             commands::download_commands::set_max_concurrent,
+            commands::download_commands::check_file_exists,
+            commands::download_commands::get_file_size,
+            // YouTube/video download commands
+            commands::download_commands::check_ytdlp_installed,
+            commands::download_commands::get_video_info,
+            commands::download_commands::get_video_qualities,
+            commands::download_commands::check_is_playlist,
+            // Settings commands
+            commands::settings_commands::get_settings,
+            commands::settings_commands::get_setting,
+            commands::settings_commands::update_settings,
+            commands::settings_commands::reset_settings,
+            // System commands
+            commands::system_commands::get_system_info,
+            commands::system_commands::check_disk_space,
+            // Service commands
+            services::clipboard_service::set_clipboard_monitoring,
+            services::notification_service::set_notifications_enabled,
+            services::notification_service::test_notification,
+            services::tray_service::handle_tray_menu_click,
         ])
         .run(tauri::generate_context!())
         .expect("Error while running Super Downloader");

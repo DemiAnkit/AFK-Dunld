@@ -21,8 +21,8 @@ pub struct DownloadEngine {
     /// HTTP client for making requests
     http_client: HttpClient,
 
-    /// Global speed limiter
-    speed_limiter: SpeedLimiter,
+    /// Global speed limiter (public for command access)
+    pub speed_limiter: SpeedLimiter,
 
     /// Default download directory
     default_download_dir: PathBuf,
@@ -329,6 +329,7 @@ impl DownloadEngine {
     }
 
     /// Start a fresh download (no resume)
+    #[allow(dead_code)]
     async fn start_fresh_download(
         &self,
         task: &mut DownloadTask,
