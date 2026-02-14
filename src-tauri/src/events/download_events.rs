@@ -71,3 +71,24 @@ pub fn emit_global_speed(
         error!("Failed to emit global speed: {}", e);
     }
 }
+
+/// Emit download status change event for tray updates
+pub fn emit_status_change(
+    app_handle: &AppHandle,
+    active_count: usize,
+    completed_count: usize,
+) {
+    // Update tray tooltip with stats
+    let tray_handle = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = crate::services::tray_service::update_tray_stats(
+            &tray_handle,
+            active_count,
+            completed_count,
+        )
+        .await
+        {
+            error!("Failed to update tray stats: {}", e);
+        }
+    });
+}

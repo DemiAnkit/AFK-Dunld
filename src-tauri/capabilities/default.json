@@ -5,6 +5,9 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:tray:default",
+    "core:menu:default",
+    "core:image:default",
     "opener:default",
     "fs:default",
     "fs:allow-app-write",
