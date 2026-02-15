@@ -54,7 +54,39 @@ fn main() {
 
             // Start file watcher service
             let handle = app.handle().clone();
-            services::file_watcher::FileWatcher::start(handle, app_state);
+            let state_for_watcher = app_state.clone();
+            services::file_watcher::FileWatcher::start(handle, state_for_watcher);
+
+            // Start scheduler and listen for scheduled tasks
+            let state_for_scheduler = app_state.clone();
+            tauri::async_runtime::spawn(async move {
+                // Start the scheduler
+                if let Err(e) = state_for_scheduler.scheduler.start().await {
+                    tracing::error!("Failed to start scheduler: {}", e);
+                    return;
+                }
+
+                // Get the receiver
+                let mut receiver_opt = state_for_scheduler.scheduled_task_receiver.write().await;
+                if let Some(mut receiver) = receiver_opt.take() {
+                    drop(receiver_opt);
+                    
+                    // Listen for scheduled tasks
+                    while let Some(task) = receiver.recv().await {
+                        tracing::info!("Scheduled task triggered: {} for download {}", task.id, task.download_id);
+                        
+                        // Get the download from database and start it
+                        let state_clone = state_for_scheduler.clone();
+                        tokio::spawn(async move {
+                            // TODO: Implement actual download restart logic
+                            // This would typically involve:
+                            // 1. Loading the download from database
+                            // 2. Calling add_download or resume_download
+                            tracing::info!("Starting scheduled download: {}", task.download_id);
+                        });
+                    }
+                }
+            });
 
             Ok(())
         })
@@ -94,6 +126,29 @@ fn main() {
             // System commands
             commands::system_commands::get_system_info,
             commands::system_commands::check_disk_space,
+            // Scheduler commands
+            commands::scheduler_commands::schedule_download,
+            commands::scheduler_commands::cancel_scheduled_download,
+            commands::scheduler_commands::update_scheduled_download,
+            commands::scheduler_commands::get_scheduled_downloads,
+            commands::scheduler_commands::start_scheduler,
+            commands::scheduler_commands::stop_scheduler,
+            commands::scheduler_commands::is_scheduler_running,
+            // FTP commands
+            commands::ftp_commands::ftp_connect,
+            commands::ftp_commands::ftp_disconnect,
+            commands::ftp_commands::ftp_list_files,
+            commands::ftp_commands::ftp_download_file,
+            commands::ftp_commands::ftp_get_file_size,
+            commands::ftp_commands::ftp_upload_file,
+            // Torrent commands
+            commands::torrent_commands::add_torrent_file,
+            commands::torrent_commands::add_magnet_link,
+            commands::torrent_commands::get_torrent_stats,
+            commands::torrent_commands::get_torrent_state,
+            commands::torrent_commands::pause_torrent,
+            commands::torrent_commands::resume_torrent,
+            commands::torrent_commands::remove_torrent,
             // Service commands
             services::clipboard_service::set_clipboard_monitoring,
             services::notification_service::set_notifications_enabled,

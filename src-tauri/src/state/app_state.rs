@@ -7,7 +7,9 @@ use uuid::Uuid;
 use crate::core::download_engine::DownloadEngine;
 use crate::core::download_task::DownloadTask;
 use crate::core::queue_manager::QueueManager;
+use crate::core::scheduler::{Scheduler, ScheduledTask};
 use crate::database::db::Database;
+use crate::network::torrent_client::{TorrentClient, TorrentConfig};
 
 /// Handle for an active download (used for cancellation)
 pub struct ActiveDownload {
@@ -28,6 +30,9 @@ pub struct AppState {
     pub active_downloads:
         Arc<RwLock<HashMap<Uuid, ActiveDownload>>>,
     pub download_dir: PathBuf,
+    pub scheduler: Arc<Scheduler>,
+    pub scheduled_task_receiver: Arc<RwLock<Option<tokio::sync::mpsc::Receiver<ScheduledTask>>>>,
+    pub torrent_client: Arc<TorrentClient>,
 }
 
 impl AppState {
@@ -55,6 +60,17 @@ impl AppState {
         let queue =
             Arc::new(RwLock::new(QueueManager::new(5)));
 
+        // Initialize scheduler
+        let (scheduler, receiver) = Scheduler::new();
+        let scheduler = Arc::new(scheduler);
+        
+        // Initialize torrent client
+        let torrent_config = TorrentConfig {
+            download_dir: download_dir.clone(),
+            ..Default::default()
+        };
+        let torrent_client = Arc::new(TorrentClient::new(torrent_config));
+
         Ok(Self {
             db,
             engine,
@@ -63,6 +79,9 @@ impl AppState {
                 HashMap::new(),
             )),
             download_dir,
+            scheduler,
+            scheduled_task_receiver: Arc::new(RwLock::new(Some(receiver))),
+            torrent_client,
         })
     }
 }

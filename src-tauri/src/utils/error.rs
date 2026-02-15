@@ -26,6 +26,15 @@ pub enum AppError {
 
     #[error("{0}")]
     Other(String),
+
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
+    #[error("Not implemented: {0}")]
+    NotImplemented(String),
 }
 
 /// Download-specific error type
@@ -75,6 +84,9 @@ pub enum DownloadError {
 
     #[error("Timeout after {seconds}s")]
     Timeout { seconds: u64 },
+
+    #[error("Authentication failed: {0}")]
+    AuthenticationFailed(String),
 
     #[error("Unknown error: {0}")]
     Unknown(String),
