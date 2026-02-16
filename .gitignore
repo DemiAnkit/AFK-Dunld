@@ -56,7 +56,18 @@ tmp_rovodev_build.txt
 build_output.txt
 build_errors.txt
 PHASE3_SUMMARY.md
+OPTION2_ENHANCEMENTS_COMPLETE.md
+IMPLEMENTATION_COMPLETE.md
+FINAL_SUMMARY.md
+QUICK_START.md
+OPTION3_QUALITY_POLISH_COMPLETE.md
+COMPLETE_PROJECT_SUMMARY.md
+TROUBLESHOOTING_SUMMARY.md
 
+src-tauri\build_output.txt
+src-tauri\build_errors.txt
+src-tauri\dev_output.txt
+tmp_rovodev_tauri_dev_error.txt
 
 
 .vscode

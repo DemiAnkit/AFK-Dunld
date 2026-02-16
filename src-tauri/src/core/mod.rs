@@ -1,3 +1,4 @@
+pub mod category;
 pub mod checksum;
 pub mod chunk_manager;
 pub mod download_engine;

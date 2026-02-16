@@ -9,7 +9,10 @@ use crate::core::download_task::DownloadTask;
 use crate::core::queue_manager::QueueManager;
 use crate::core::scheduler::{Scheduler, ScheduledTask};
 use crate::database::db::Database;
-use crate::network::torrent_client::{TorrentClient, TorrentConfig};
+use crate::network::torrent_client_librqbit::{LibrqbitTorrentClient, TorrentConfig};
+use crate::utils::logging::Logger;
+use crate::utils::security::{CredentialVault, RateLimiter};
+use std::time::Duration;
 
 /// Handle for an active download (used for cancellation)
 pub struct ActiveDownload {
@@ -32,7 +35,10 @@ pub struct AppState {
     pub download_dir: PathBuf,
     pub scheduler: Arc<Scheduler>,
     pub scheduled_task_receiver: Arc<RwLock<Option<tokio::sync::mpsc::Receiver<ScheduledTask>>>>,
-    pub torrent_client: Arc<TorrentClient>,
+    pub torrent_client: Arc<LibrqbitTorrentClient>,
+    pub logger: Arc<Logger>,
+    pub credential_vault: Arc<CredentialVault>,
+    pub rate_limiter: Arc<RateLimiter>,
 }
 
 impl AppState {
@@ -64,12 +70,28 @@ impl AppState {
         let (scheduler, receiver) = Scheduler::new();
         let scheduler = Arc::new(scheduler);
         
-        // Initialize torrent client
+        // Initialize torrent client with librqbit
         let torrent_config = TorrentConfig {
             download_dir: download_dir.clone(),
             ..Default::default()
         };
-        let torrent_client = Arc::new(TorrentClient::new(torrent_config));
+        let torrent_client = LibrqbitTorrentClient::new(torrent_config)
+            .await
+            .map_err(|e| crate::utils::error::DownloadError::NetworkError(format!("Failed to create torrent client: {}", e)))?;
+        let torrent_client = Arc::new(torrent_client);
+
+        // Initialize logger
+        let logger = Arc::new(Logger::new());
+
+        // Initialize credential vault with a master password
+        // In production, this should be stored securely or derived from user input
+        let credential_vault = Arc::new(
+            CredentialVault::new("default_master_password")
+                .map_err(|e| crate::utils::error::DownloadError::Unknown(e))?
+        );
+
+        // Initialize rate limiter (10 requests per 60 seconds per key)
+        let rate_limiter = Arc::new(RateLimiter::new(10, Duration::from_secs(60)));
 
         Ok(Self {
             db,
@@ -82,6 +104,9 @@ impl AppState {
             scheduler,
             scheduled_task_receiver: Arc::new(RwLock::new(Some(receiver))),
             torrent_client,
+            logger,
+            credential_vault,
+            rate_limiter,
         })
     }
 }

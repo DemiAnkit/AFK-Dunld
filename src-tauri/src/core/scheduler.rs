@@ -97,7 +97,8 @@ impl Scheduler {
         let running = self.running.clone();
 
         tokio::spawn(async move {
-            let mut check_interval = interval(std::time::Duration::from_secs(10));
+            // Optimized: 1-second interval instead of 10 seconds for better precision
+            let mut check_interval = interval(std::time::Duration::from_secs(1));
             
             loop {
                 check_interval.tick().await;

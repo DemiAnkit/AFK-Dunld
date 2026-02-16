@@ -58,6 +58,13 @@ num_cpus = "1.16"
 image = "0.25"
 suppaftp = { version = "6.0", features = ["async-secure", "async-native-tls"] }
 async-native-tls = "0.5"
+# SFTP support - using ssh2 directly without async wrapper
+ssh2 = "0.9"
+# Torrent support - using simpler approach for now
+# librqbit = "5.1"  # Commented out due to compilation errors
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.21"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["sysinfoapi", "fileapi"] }

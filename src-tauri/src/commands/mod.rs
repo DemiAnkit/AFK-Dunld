@@ -1,7 +1,11 @@
+pub mod category_commands;
 pub mod download_commands;
 pub mod queue_commands;
 pub mod settings_commands;
 pub mod system_commands;
 pub mod scheduler_commands;
 pub mod ftp_commands;
+pub mod sftp_commands;
 pub mod torrent_commands;
+pub mod logging_commands;
+pub mod security_commands;

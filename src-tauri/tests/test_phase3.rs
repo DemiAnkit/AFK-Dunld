@@ -40,7 +40,8 @@ mod scheduler_tests {
 
     #[tokio::test]
     async fn test_schedule_immediate_task() {
-        use afk_dunld::core::scheduler::{Scheduler, ScheduledTask};
+        use afk_dunld_lib::core::scheduler::{Scheduler, ScheduledTask};
+        use afk_dunld_lib::utils::error::AppError;
         
         let (scheduler, mut receiver) = Scheduler::new();
         
@@ -53,11 +54,11 @@ mod scheduler_tests {
             enabled: true,
         };
 
-        scheduler.add_task(task).await.unwrap();
-        scheduler.start().await.unwrap();
+        let _: Result<(), AppError> = scheduler.add_task(task).await;
+        let _: Result<(), AppError> = scheduler.start().await;
 
         // Wait for task to be executed
-        let result = tokio::time::timeout(
+        let result: Result<Option<ScheduledTask>, tokio::time::error::Elapsed> = tokio::time::timeout(
             std::time::Duration::from_secs(15),
             receiver.recv()
         ).await;
@@ -67,12 +68,13 @@ mod scheduler_tests {
         assert!(executed_task.is_some());
         assert_eq!(executed_task.unwrap().download_id, "dl-1");
 
-        scheduler.stop().await.unwrap();
+        let _: Result<(), AppError> = scheduler.stop().await;
     }
 
     #[tokio::test]
     async fn test_schedule_future_task() {
-        use afk_dunld::core::scheduler::{Scheduler, ScheduledTask};
+        use afk_dunld_lib::core::scheduler::{Scheduler, ScheduledTask};
+        use afk_dunld_lib::utils::error::AppError;
         
         let (scheduler, mut receiver) = Scheduler::new();
         
@@ -85,11 +87,11 @@ mod scheduler_tests {
             enabled: true,
         };
 
-        scheduler.add_task(task).await.unwrap();
-        scheduler.start().await.unwrap();
+        let _: Result<(), AppError> = scheduler.add_task(task).await;
+        let _: Result<(), AppError> = scheduler.start().await;
 
         // Should not execute immediately
-        let result = tokio::time::timeout(
+        let result: Result<Option<ScheduledTask>, tokio::time::error::Elapsed> = tokio::time::timeout(
             std::time::Duration::from_secs(1),
             receiver.recv()
         ).await;
@@ -97,7 +99,7 @@ mod scheduler_tests {
         assert!(result.is_err()); // Timeout - task hasn't executed yet
 
         // Wait longer - should execute now
-        let result = tokio::time::timeout(
+        let result: Result<Option<ScheduledTask>, tokio::time::error::Elapsed> = tokio::time::timeout(
             std::time::Duration::from_secs(15),
             receiver.recv()
         ).await;
@@ -107,12 +109,13 @@ mod scheduler_tests {
         assert!(executed_task.is_some());
         assert_eq!(executed_task.unwrap().download_id, "dl-2");
 
-        scheduler.stop().await.unwrap();
+        let _: Result<(), AppError> = scheduler.stop().await;
     }
 
     #[tokio::test]
     async fn test_repeating_task() {
-        use afk_dunld::core::scheduler::{Scheduler, ScheduledTask, RepeatInterval};
+        use afk_dunld_lib::core::scheduler::{Scheduler, ScheduledTask, RepeatInterval};
+        use afk_dunld_lib::utils::error::AppError;
         
         let (scheduler, mut receiver) = Scheduler::new();
         
@@ -125,29 +128,30 @@ mod scheduler_tests {
             enabled: true,
         };
 
-        scheduler.add_task(task).await.unwrap();
-        scheduler.start().await.unwrap();
+        let _: Result<(), AppError> = scheduler.add_task(task).await;
+        let _: Result<(), AppError> = scheduler.start().await;
 
         // Should execute first time
-        let result1 = tokio::time::timeout(
+        let result1: Result<Option<ScheduledTask>, tokio::time::error::Elapsed> = tokio::time::timeout(
             std::time::Duration::from_secs(15),
             receiver.recv()
         ).await;
         assert!(result1.is_ok());
 
         // Should execute second time after interval
-        let result2 = tokio::time::timeout(
+        let result2: Result<Option<ScheduledTask>, tokio::time::error::Elapsed> = tokio::time::timeout(
             std::time::Duration::from_secs(15),
             receiver.recv()
         ).await;
         assert!(result2.is_ok());
 
-        scheduler.stop().await.unwrap();
+        let _: Result<(), AppError> = scheduler.stop().await;
     }
 
     #[tokio::test]
     async fn test_disable_task() {
-        use afk_dunld::core::scheduler::{Scheduler, ScheduledTask};
+        use afk_dunld_lib::core::scheduler::{Scheduler, ScheduledTask};
+        use afk_dunld_lib::utils::error::AppError;
         
         let (scheduler, mut receiver) = Scheduler::new();
         
@@ -160,18 +164,18 @@ mod scheduler_tests {
             enabled: false, // Disabled
         };
 
-        scheduler.add_task(task).await.unwrap();
-        scheduler.start().await.unwrap();
+        let _: Result<(), AppError> = scheduler.add_task(task).await;
+        let _: Result<(), AppError> = scheduler.start().await;
 
         // Should not execute
-        let result = tokio::time::timeout(
+        let result: Result<Option<ScheduledTask>, tokio::time::error::Elapsed> = tokio::time::timeout(
             std::time::Duration::from_secs(2),
             receiver.recv()
         ).await;
         
         assert!(result.is_err()); // Timeout - disabled task doesn't execute
 
-        scheduler.stop().await.unwrap();
+        let _: Result<(), AppError> = scheduler.stop().await;
     }
 }
 
@@ -182,12 +186,13 @@ mod torrent_tests {
     #[tokio::test]
     #[ignore]
     async fn test_parse_magnet_link() {
-        use afk_dunld::network::torrent_client::TorrentClient;
+        use afk_dunld_lib::network::torrent_client::TorrentClient;
+        use afk_dunld_lib::utils::error::AppError;
         
         let client = TorrentClient::new(Default::default());
         
         let magnet = "magnet:?xt=urn:btih:1234567890abcdef1234567890abcdef12345678&dn=test";
-        let result = client.add_magnet(magnet).await;
+        let result: Result<String, AppError> = client.add_magnet(magnet).await;
         
         // Should parse successfully (even though download won't work in test)
         assert!(result.is_ok());
@@ -197,12 +202,13 @@ mod torrent_tests {
 
     #[tokio::test]
     async fn test_invalid_magnet_link() {
-        use afk_dunld::network::torrent_client::TorrentClient;
+        use afk_dunld_lib::network::torrent_client::TorrentClient;
+        use afk_dunld_lib::utils::error::AppError;
         
         let client = TorrentClient::new(Default::default());
         
         let invalid_magnet = "not-a-magnet-link";
-        let result = client.add_magnet(invalid_magnet).await;
+        let result: Result<String, AppError> = client.add_magnet(invalid_magnet).await;
         
         assert!(result.is_err());
     }

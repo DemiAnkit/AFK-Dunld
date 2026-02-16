@@ -1,11 +1,9 @@
 // src-tauri/src/network/ftp_client.rs
 
-use async_native_tls::TlsConnector;
 use std::path::PathBuf;
 use suppaftp::{AsyncFtpStream, AsyncNativeTlsFtpStream};
 use suppaftp::types::FileType;
 use tokio::io::AsyncWriteExt;
-use futures::io::AsyncReadExt;
 use tracing::{debug, info};
 
 use crate::utils::error::DownloadError;
@@ -25,6 +23,9 @@ use serde::{Serialize, Deserialize};
 pub struct FtpFileInfo {
     pub file_name: String,
     pub file_size: Option<u64>,
+    pub is_dir: bool,
+    pub modified: Option<u64>,
+    pub full_path: String,
 }
 
 impl FtpClient {
@@ -110,6 +111,9 @@ impl FtpClient {
         Ok(FtpFileInfo {
             file_name,
             file_size: size.map(|s| s as u64),
+            is_dir: false,
+            modified: None,
+            full_path: remote_path.to_string(),
         })
     }
 
@@ -131,6 +135,114 @@ impl FtpClient {
         Ok(FtpFileInfo {
             file_name,
             file_size: size.map(|s| s as u64),
+            is_dir: false,
+            modified: None,
+            full_path: remote_path.to_string(),
+        })
+    }
+
+    /// List directory contents
+    pub async fn list_directory(&self, remote_path: &str) -> Result<Vec<FtpFileInfo>, DownloadError> {
+        if self.use_tls {
+            self.list_directory_tls(remote_path).await
+        } else {
+            self.list_directory_plain(remote_path).await
+        }
+    }
+
+    async fn list_directory_plain(&self, remote_path: &str) -> Result<Vec<FtpFileInfo>, DownloadError> {
+        let mut ftp = self.connect_plain().await?;
+        
+        // Change to directory
+        if !remote_path.is_empty() && remote_path != "/" {
+            ftp.cwd(remote_path)
+                .await
+                .map_err(|e| DownloadError::NetworkError(format!("Failed to change directory: {}", e)))?;
+        }
+        
+        // List directory contents
+        let files = ftp.list(None)
+            .await
+            .map_err(|e| DownloadError::NetworkError(format!("Failed to list directory: {}", e)))?;
+
+        let mut result = Vec::new();
+        
+        for file_str in files {
+            if let Some(info) = Self::parse_list_line(&file_str, remote_path) {
+                result.push(info);
+            }
+        }
+
+        let _ = ftp.quit().await;
+        Ok(result)
+    }
+
+    async fn list_directory_tls(&self, remote_path: &str) -> Result<Vec<FtpFileInfo>, DownloadError> {
+        let mut ftp = self.connect_tls().await?;
+        
+        // Change to directory
+        if !remote_path.is_empty() && remote_path != "/" {
+            ftp.cwd(remote_path)
+                .await
+                .map_err(|e| DownloadError::NetworkError(format!("Failed to change directory: {}", e)))?;
+        }
+        
+        // List directory contents
+        let files = ftp.list(None)
+            .await
+            .map_err(|e| DownloadError::NetworkError(format!("Failed to list directory: {}", e)))?;
+
+        let mut result = Vec::new();
+        
+        for file_str in files {
+            if let Some(info) = Self::parse_list_line(&file_str, remote_path) {
+                result.push(info);
+            }
+        }
+
+        let _ = ftp.quit().await;
+        Ok(result)
+    }
+
+    /// Parse a line from FTP LIST command
+    /// Format: -rw-r--r-- 1 user group 1234 Jan 01 12:34 filename.txt
+    fn parse_list_line(line: &str, base_path: &str) -> Option<FtpFileInfo> {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        
+        if parts.len() < 9 {
+            return None;
+        }
+
+        let permissions = parts[0];
+        let is_dir = permissions.starts_with('d');
+        
+        // Size is typically at index 4
+        let file_size = if !is_dir {
+            parts[4].parse::<u64>().ok()
+        } else {
+            None
+        };
+
+        // Filename is everything after the date/time (last parts)
+        let file_name = parts[8..].join(" ");
+        
+        // Skip . and ..
+        if file_name == "." || file_name == ".." {
+            return None;
+        }
+
+        let full_path = if base_path.is_empty() || base_path == "/" {
+            format!("/{}", file_name)
+        } else {
+            format!("{}/{}", base_path.trim_end_matches('/'), file_name)
+        };
+
+        Some(FtpFileInfo {
+            file_name,
+            file_size,
+            is_dir,
+            modified: None, // Could parse the date/time if needed
+            full_path,
         })
     }
 

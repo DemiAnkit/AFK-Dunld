@@ -35,6 +35,9 @@ pub enum AppError {
 
     #[error("Not implemented: {0}")]
     NotImplemented(String),
+
+    #[error("Torrent error: {0}")]
+    TorrentError(String),
 }
 
 /// Download-specific error type
@@ -90,6 +93,18 @@ pub enum DownloadError {
 
     #[error("Unknown error: {0}")]
     Unknown(String),
+
+    #[error("Not found: {0}")]
+    NotFound(String),
+
+    #[error("Permission denied")]
+    PermissionDenied,
+
+    #[error("Disk full")]
+    DiskFull,
+
+    #[error("Torrent error: {0}")]
+    TorrentError(String),
 }
 
 // Allow DownloadError to be returned from Tauri commands

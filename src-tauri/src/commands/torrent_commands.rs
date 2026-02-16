@@ -1,6 +1,6 @@
 use tauri::State;
 use crate::state::app_state::AppState;
-use crate::network::torrent_client::{TorrentStats, TorrentState};
+use crate::network::torrent_client_librqbit::{TorrentStats, TorrentState};
 use std::path::PathBuf;
 
 #[tauri::command]
@@ -46,10 +46,12 @@ pub async fn get_torrent_state(
     state: State<'_, AppState>,
     info_hash: String,
 ) -> Result<TorrentState, String> {
+    // Stub implementation - torrent client disabled
     state
         .torrent_client
-        .get_state(&info_hash)
+        .get_stats(&info_hash)
         .await
+        .map(|_| TorrentState::Paused)
         .map_err(|e| e.to_string())
 }
 

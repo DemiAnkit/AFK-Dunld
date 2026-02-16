@@ -409,6 +409,157 @@ impl Database {
 
         Ok(())
     }
+
+    // ========== Category Operations ==========
+
+    /// Get all categories
+    pub async fn get_all_categories(&self) -> Result<Vec<crate::core::category::Category>, DownloadError> {
+        let rows: Vec<(String, String, Option<String>, Option<String>, Option<String>, i64, i64)> = sqlx::query_as(
+            "SELECT id, name, color, icon, save_path, created_at, updated_at FROM categories ORDER BY name"
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to get categories: {}", e)))?;
+
+        Ok(rows.into_iter().map(|(id, name, color, icon, save_path, created_at, updated_at)| {
+            crate::core::category::Category {
+                id,
+                name,
+                color,
+                icon,
+                save_path: save_path.map(PathBuf::from),
+                created_at,
+                updated_at,
+            }
+        }).collect())
+    }
+
+    /// Get a single category by ID
+    pub async fn get_category(&self, category_id: &str) -> Result<crate::core::category::Category, DownloadError> {
+        let row: (String, String, Option<String>, Option<String>, Option<String>, i64, i64) = sqlx::query_as(
+            "SELECT id, name, color, icon, save_path, created_at, updated_at FROM categories WHERE id = ?1"
+        )
+        .bind(category_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DownloadError::NotFound(format!("Category not found: {}", e)))?;
+
+        Ok(crate::core::category::Category {
+            id: row.0,
+            name: row.1,
+            color: row.2,
+            icon: row.3,
+            save_path: row.4.map(PathBuf::from),
+            created_at: row.5,
+            updated_at: row.6,
+        })
+    }
+
+    /// Create a new category
+    pub async fn create_category(&self, category: &crate::core::category::Category) -> Result<(), DownloadError> {
+        sqlx::query(
+            r#"
+            INSERT INTO categories (id, name, color, icon, save_path, created_at, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            "#
+        )
+        .bind(&category.id)
+        .bind(&category.name)
+        .bind(&category.color)
+        .bind(&category.icon)
+        .bind(category.save_path.as_ref().map(|p| p.to_string_lossy().to_string()))
+        .bind(category.created_at)
+        .bind(category.updated_at)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to create category: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Update a category
+    pub async fn update_category(&self, category: &crate::core::category::Category) -> Result<(), DownloadError> {
+        sqlx::query(
+            r#"
+            UPDATE categories SET 
+                name = ?1, 
+                color = ?2, 
+                icon = ?3, 
+                save_path = ?4, 
+                updated_at = ?5
+            WHERE id = ?6
+            "#
+        )
+        .bind(&category.name)
+        .bind(&category.color)
+        .bind(&category.icon)
+        .bind(category.save_path.as_ref().map(|p| p.to_string_lossy().to_string()))
+        .bind(category.updated_at)
+        .bind(&category.id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to update category: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Delete a category
+    pub async fn delete_category(&self, category_id: &str) -> Result<(), DownloadError> {
+        // First, reassign downloads to default category
+        sqlx::query("UPDATE downloads SET category_id = 'default' WHERE category_id = ?1")
+            .bind(category_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DownloadError::Unknown(format!("Failed to reassign downloads: {}", e)))?;
+
+        // Then delete the category
+        sqlx::query("DELETE FROM categories WHERE id = ?1")
+            .bind(category_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DownloadError::Unknown(format!("Failed to delete category: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Get category statistics
+    pub async fn get_category_stats(&self, category_id: &str) -> Result<crate::core::category::CategoryStats, DownloadError> {
+        let row: (i64, i64, i64, i64) = sqlx::query_as(
+            r#"
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) as completed,
+                COALESCE(SUM(total_size), 0) as total_size,
+                COALESCE(SUM(downloaded_size), 0) as downloaded_size
+            FROM downloads 
+            WHERE category_id = ?1
+            "#
+        )
+        .bind(category_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| DownloadError::Unknown(format!("Failed to get category stats: {}", e)))?;
+
+        Ok(crate::core::category::CategoryStats {
+            category_id: category_id.to_string(),
+            total_downloads: row.0 as usize,
+            completed_downloads: row.1 as usize,
+            total_size: row.2 as u64,
+            downloaded_size: row.3 as u64,
+        })
+    }
+
+    /// Assign a download to a category
+    pub async fn assign_download_category(&self, download_id: &str, category_id: &str) -> Result<(), DownloadError> {
+        sqlx::query("UPDATE downloads SET category_id = ?1 WHERE id = ?2")
+            .bind(category_id)
+            .bind(download_id)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| DownloadError::Unknown(format!("Failed to assign category: {}", e)))?;
+
+        Ok(())
+    }
 }
 
 // Implement sqlx::FromRow for DownloadRow
