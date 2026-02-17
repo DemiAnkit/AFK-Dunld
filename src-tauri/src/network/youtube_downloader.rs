@@ -7,7 +7,9 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use serde::{Serialize, Deserialize};
 use tracing::{debug, error, info, warn};
 
-pub struct YouTubeDownloader;
+pub struct YouTubeDownloader {
+    ytdlp_path: Option<PathBuf>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct YouTubeDownloadOptions {
@@ -56,12 +58,31 @@ pub struct QualityOption {
 
 impl YouTubeDownloader {
     pub fn new() -> Self {
-        Self
+        Self {
+            ytdlp_path: None,
+        }
+    }
+
+    /// Create a new YouTubeDownloader with a custom yt-dlp binary path
+    pub fn with_binary_path(ytdlp_path: PathBuf) -> Self {
+        Self {
+            ytdlp_path: Some(ytdlp_path),
+        }
+    }
+
+    /// Get the yt-dlp command to use (either bundled or system)
+    fn get_ytdlp_command(&self) -> String {
+        if let Some(ref path) = self.ytdlp_path {
+            path.to_string_lossy().to_string()
+        } else {
+            "yt-dlp".to_string()
+        }
     }
 
     /// Check if yt-dlp is installed and available
-    pub async fn check_installation() -> Result<bool> {
-        let result = Command::new("yt-dlp")
+    pub async fn check_installation(&self) -> Result<bool> {
+        let cmd = self.get_ytdlp_command();
+        let result = Command::new(&cmd)
             .arg("--version")
             .output()
             .await;
@@ -72,6 +93,12 @@ impl YouTubeDownloader {
         }
     }
 
+    /// Static method for backwards compatibility
+    pub async fn check_installation_static() -> Result<bool> {
+        let downloader = Self::new();
+        downloader.check_installation().await
+    }
+
     /// Get available quality options for a video
     pub async fn get_available_qualities(&self, url: &str) -> Result<Vec<QualityOption>> {
         if !Self::is_supported_url(url) {
@@ -80,7 +107,8 @@ impl YouTubeDownloader {
 
         debug!("Fetching available qualities for: {}", url);
 
-        let output = Command::new("yt-dlp")
+        let cmd = self.get_ytdlp_command();
+        let output = Command::new(&cmd)
             .args(&[
                 "-F",  // List all formats
                 "--dump-json",
@@ -226,7 +254,8 @@ impl YouTubeDownloader {
         info!("Starting YouTube/video download with yt-dlp");
         debug!("yt-dlp args: {:?}", args);
 
-        let output = Command::new("yt-dlp")
+        let cmd = self.get_ytdlp_command();
+        let output = Command::new(&cmd)
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -314,8 +343,8 @@ impl YouTubeDownloader {
         }
 
         // Check if yt-dlp is installed
-        if !Self::check_installation().await? {
-            bail!("yt-dlp is not installed. Please install it from https://github.com/yt-dlp/yt-dlp");
+        if !self.check_installation().await? {
+            bail!("yt-dlp is not available. Please ensure the application is properly installed.");
         }
 
         // Ensure output directory exists
@@ -388,7 +417,8 @@ impl YouTubeDownloader {
 
         info!("Starting download with progress tracking");
 
-        let mut child = Command::new("yt-dlp")
+        let cmd = self.get_ytdlp_command();
+        let mut child = Command::new(&cmd)
             .args(&args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -560,7 +590,8 @@ impl YouTubeDownloader {
 
         debug!("Fetching video info for: {}", url);
 
-        let output = Command::new("yt-dlp")
+        let cmd = self.get_ytdlp_command();
+        let output = Command::new(&cmd)
             .args(&[
                 "--dump-json",
                 "--no-playlist",

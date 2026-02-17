@@ -9,3 +9,4 @@ pub mod sftp_commands;
 pub mod torrent_commands;
 pub mod logging_commands;
 pub mod security_commands;
+pub mod ytdlp_commands;

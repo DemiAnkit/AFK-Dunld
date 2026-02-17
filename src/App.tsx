@@ -54,17 +54,16 @@ function AppContent() {
       }
       
       try {
-        // Check yt-dlp installation
+        // Check yt-dlp installation (bundled version should always be available)
         const installed = await checkInstallation();
         if (!installed) {
-          console.log("⚠️ yt-dlp not installed");
-          setShowYtdlpWarning(true);
+          console.log("⚠️ yt-dlp not available - this should not happen with bundled version");
+          // Note: With bundled yt-dlp, this warning should rarely appear
         } else {
-          console.log("✅ yt-dlp is installed");
+          console.log("✅ yt-dlp is available (bundled)");
         }
       } catch (err) {
         console.error("❌ Failed to check yt-dlp installation:", err);
-        // Don't show warning if check fails - might be in dev mode
       }
     };
     
@@ -75,7 +74,7 @@ function AppContent() {
     <div className="flex flex-col h-screen bg-gray-950 text-white">
       <Header />
       
-      {/* yt-dlp Installation Warning */}
+      {/* yt-dlp Warning - Should rarely appear with bundled version */}
       {showYtdlpWarning && isInstalled === false && (
         <div className="bg-yellow-900/30 border-b border-yellow-700/50 px-4 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -83,18 +82,10 @@ function AppContent() {
               <AlertCircle className="w-5 h-5 text-yellow-400" />
               <div>
                 <p className="text-sm font-medium text-yellow-200">
-                  yt-dlp is not installed - YouTube downloads will not work
+                  YouTube downloader is not available
                 </p>
                 <p className="text-xs text-yellow-300/80 mt-0.5">
-                  Install it to enable downloads from YouTube, Vimeo, and 1000+ other platforms.{' '}
-                  <a 
-                    href="https://github.com/yt-dlp/yt-dlp#installation" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="underline hover:text-yellow-200"
-                  >
-                    Installation Guide
-                  </a>
+                  Please restart the application. If the issue persists, try reinstalling.
                 </p>
               </div>
             </div>

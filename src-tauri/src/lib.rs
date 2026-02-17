@@ -48,8 +48,9 @@ pub fn run() {
                 .expect("Failed to get app data directory");
 
             // Initialize app state
+            let app_handle = app.handle().clone();
             let app_state = tauri::async_runtime::block_on(async {
-                AppState::new(app_data_dir)
+                AppState::new(app_data_dir, &app_handle)
                     .await
                     .expect("Failed to initialize app state")
             });
@@ -127,6 +128,10 @@ pub fn run() {
             commands::download_commands::get_video_info,
             commands::download_commands::get_video_qualities,
             commands::download_commands::check_is_playlist,
+            // yt-dlp management commands
+            commands::ytdlp_commands::update_ytdlp,
+            commands::ytdlp_commands::get_ytdlp_version,
+            commands::ytdlp_commands::get_bundled_ytdlp_version,
             // Settings commands
             commands::settings_commands::get_settings,
             commands::settings_commands::get_setting,

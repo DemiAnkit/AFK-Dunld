@@ -12,6 +12,7 @@ use crate::database::db::Database;
 use crate::network::torrent_client_librqbit::{LibrqbitTorrentClient, TorrentConfig};
 use crate::utils::logging::Logger;
 use crate::utils::security::{CredentialVault, RateLimiter};
+use crate::utils::ytdlp_manager::YtdlpManager;
 use std::time::Duration;
 
 /// Handle for an active download (used for cancellation)
@@ -39,11 +40,13 @@ pub struct AppState {
     pub logger: Arc<Logger>,
     pub credential_vault: Arc<CredentialVault>,
     pub rate_limiter: Arc<RateLimiter>,
+    pub ytdlp_manager: Arc<YtdlpManager>,
 }
 
 impl AppState {
     pub async fn new(
         app_data_dir: PathBuf,
+        app_handle: &tauri::AppHandle,
     ) -> Result<Self, crate::utils::error::DownloadError> {
         // Initialize database
         let db = Database::new(&app_data_dir).await?;
@@ -93,6 +96,16 @@ impl AppState {
         // Initialize rate limiter (10 requests per 60 seconds per key)
         let rate_limiter = Arc::new(RateLimiter::new(10, Duration::from_secs(60)));
 
+        // Initialize yt-dlp manager
+        let ytdlp_manager = YtdlpManager::new(app_handle)
+            .map_err(|e| crate::utils::error::DownloadError::Unknown(e.to_string()))?;
+        
+        // Initialize yt-dlp (extract bundled binary)
+        ytdlp_manager.initialize(app_handle).await
+            .map_err(|e| crate::utils::error::DownloadError::Unknown(e.to_string()))?;
+        
+        let ytdlp_manager = Arc::new(ytdlp_manager);
+
         Ok(Self {
             db,
             engine,
@@ -107,6 +120,7 @@ impl AppState {
             logger,
             credential_vault,
             rate_limiter,
+            ytdlp_manager,
         })
     }
 }

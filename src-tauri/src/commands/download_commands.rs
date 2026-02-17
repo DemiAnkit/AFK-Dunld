@@ -731,16 +731,19 @@ pub async fn set_max_concurrent(
 
 /// Check if yt-dlp is installed
 #[tauri::command]
-pub async fn check_ytdlp_installed() -> Result<bool, String> {
-    YouTubeDownloader::check_installation()
+pub async fn check_ytdlp_installed(state: State<'_, AppState>) -> Result<bool, String> {
+    let ytdlp_path = state.ytdlp_manager.get_binary_path();
+    let youtube_dl = YouTubeDownloader::with_binary_path(ytdlp_path.clone());
+    youtube_dl.check_installation()
         .await
         .map_err(|e| e.to_string())
 }
 
 /// Get video information for a URL
 #[tauri::command]
-pub async fn get_video_info(url: String) -> Result<VideoInfo, String> {
-    let youtube_dl = YouTubeDownloader::new();
+pub async fn get_video_info(url: String, state: State<'_, AppState>) -> Result<VideoInfo, String> {
+    let ytdlp_path = state.ytdlp_manager.get_binary_path();
+    let youtube_dl = YouTubeDownloader::with_binary_path(ytdlp_path.clone());
     youtube_dl
         .get_video_info(&url)
         .await
@@ -749,8 +752,9 @@ pub async fn get_video_info(url: String) -> Result<VideoInfo, String> {
 
 /// Get available quality options for a video
 #[tauri::command]
-pub async fn get_video_qualities(url: String) -> Result<Vec<QualityOption>, String> {
-    let youtube_dl = YouTubeDownloader::new();
+pub async fn get_video_qualities(url: String, state: State<'_, AppState>) -> Result<Vec<QualityOption>, String> {
+    let ytdlp_path = state.ytdlp_manager.get_binary_path();
+    let youtube_dl = YouTubeDownloader::with_binary_path(ytdlp_path.clone());
     youtube_dl
         .get_available_qualities(&url)
         .await
@@ -759,8 +763,9 @@ pub async fn get_video_qualities(url: String) -> Result<Vec<QualityOption>, Stri
 
 /// Check if URL is a playlist
 #[tauri::command]
-pub async fn check_is_playlist(url: String) -> Result<bool, String> {
-    let youtube_dl = YouTubeDownloader::new();
+pub async fn check_is_playlist(url: String, state: State<'_, AppState>) -> Result<bool, String> {
+    let ytdlp_path = state.ytdlp_manager.get_binary_path();
+    let youtube_dl = YouTubeDownloader::with_binary_path(ytdlp_path.clone());
     youtube_dl
         .is_playlist(&url)
         .await
@@ -813,7 +818,8 @@ async fn handle_youtube_download(
     state: State<'_, AppState>,
     request: AddDownloadRequest,
 ) -> Result<DownloadTask, String> {
-    let youtube_dl = YouTubeDownloader::new();
+    let ytdlp_path = state.ytdlp_manager.get_binary_path();
+    let youtube_dl = YouTubeDownloader::with_binary_path(ytdlp_path.clone());
 
     // Get video info first
     let video_info = youtube_dl
@@ -885,11 +891,12 @@ async fn handle_youtube_download(
     let task_clone = task.clone();
     let db = state.db.clone();
     let app_handle_clone = app_handle.clone();
+    let ytdlp_path_clone = ytdlp_path.clone();
 
     // Spawn the download task in background using Tauri's runtime
     // Create a new YouTubeDownloader instance inside the spawn to avoid Send issues
     tauri::async_runtime::spawn(async move {
-        let youtube_dl = YouTubeDownloader::new();
+        let youtube_dl = YouTubeDownloader::with_binary_path(ytdlp_path_clone);
         match youtube_dl.download(options).await {
             Ok(final_path) => {
                 tracing::info!("YouTube download completed successfully: {:?}", final_path);
