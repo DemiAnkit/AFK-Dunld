@@ -11,6 +11,8 @@ import { SettingsPage } from "./components/settings/SettingsPage";
 import { AddDownloadDialog } from "./components/downloads/AddDownloadDialog";
 import { AddCategoryDialog } from "./components/dialogs/AddCategoryDialog";
 import { DownloadHistory } from "./components/history/DownloadHistory";
+import ScheduleManager from "./components/scheduler/ScheduleManager";
+import QueueManager from "./components/queue/QueueManager";
 import { useDownloadEvents } from "./hooks/useTauriEvents";
 import { useTheme } from "./hooks/useTheme";
 import { useDownloadStore } from "./stores/downloadStore";
@@ -18,6 +20,7 @@ import { useSettingsStore } from "./stores/settingsStore";
 import { useUIStore } from "./stores/uiStore";
 import { useYouTubeDownload } from "./hooks/useYouTubeDownload";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { enableAutoRecovery } from "./utils/errorRecovery";
 import { AlertCircle, X } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -32,6 +35,12 @@ function AppContent() {
   useDownloadEvents();
   useTheme();
   useKeyboardShortcuts();
+
+  // Enable auto-recovery for stalled downloads
+  useEffect(() => {
+    const cleanup = enableAutoRecovery();
+    return cleanup;
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -112,6 +121,8 @@ function AppContent() {
           <Route path="/video" element={<DownloadTable filter="video" />} />
           <Route path="/music" element={<DownloadTable filter="music" />} />
           <Route path="/history" element={<DownloadHistory />} />
+          <Route path="/schedule" element={<ScheduleManager />} />
+          <Route path="/queue" element={<QueueManager />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

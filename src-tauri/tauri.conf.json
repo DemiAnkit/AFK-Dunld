@@ -42,6 +42,32 @@
     ],
     "resources": [
       "resources/bin/*"
-    ]
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "providerShortName": null,
+      "entitlements": null
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    },
+    "publisher": "AFK Downloads",
+    "copyright": "Copyright © 2024",
+    "category": "Utility",
+    "shortDescription": "Advanced download manager with YouTube support",
+    "longDescription": "AFK-Dunld is a powerful download manager with built-in YouTube/video downloading capabilities, queue management, scheduling, and more."
   }
 }

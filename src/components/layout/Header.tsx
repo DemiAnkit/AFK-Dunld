@@ -4,6 +4,7 @@ import { useUIStore } from "../../stores/uiStore";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
+import { ThemeToggle } from "../common/ThemeToggle";
 import toast from "react-hot-toast";
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-shell";
@@ -216,6 +217,8 @@ export function Header() {
               <Play className="w-5 h-5 group-hover:scale-110 transition-transform group-hover:translate-x-0.5" />
             </button>
 
+            <ThemeToggle />
+            
             <KeyboardShortcutsHelp />
           </div>
         </div>
