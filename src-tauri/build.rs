@@ -28,11 +28,32 @@ fn download_ytdlp_binaries() {
     let ytdlp_version = "2024.08.06"; // Update periodically or fetch latest
     let base_url = "https://github.com/yt-dlp/yt-dlp/releases/download";
     
-    let binaries = vec![
-        ("yt-dlp.exe", format!("{}/{}/yt-dlp.exe", base_url, ytdlp_version)),
-        ("yt-dlp_macos", format!("{}/{}/yt-dlp_macos", base_url, ytdlp_version)),
-        ("yt-dlp_linux", format!("{}/{}/yt-dlp_linux", base_url, ytdlp_version)),
-    ];
+    // Only download binary for current platform to reduce build size
+    let current_platform = if cfg!(target_os = "windows") {
+        Some(("yt-dlp.exe", format!("{}/{}/yt-dlp.exe", base_url, ytdlp_version)))
+    } else if cfg!(target_os = "macos") {
+        Some(("yt-dlp_macos", format!("{}/{}/yt-dlp_macos", base_url, ytdlp_version)))
+    } else if cfg!(target_os = "linux") {
+        Some(("yt-dlp_linux", format!("{}/{}/yt-dlp_linux", base_url, ytdlp_version)))
+    } else {
+        None
+    };
+    
+    // Option to download all platforms (for universal builds)
+    let download_all_platforms = std::env::var("YTDLP_BUNDLE_ALL_PLATFORMS").is_ok();
+    
+    let binaries = if download_all_platforms {
+        vec![
+            ("yt-dlp.exe", format!("{}/{}/yt-dlp.exe", base_url, ytdlp_version)),
+            ("yt-dlp_macos", format!("{}/{}/yt-dlp_macos", base_url, ytdlp_version)),
+            ("yt-dlp_linux", format!("{}/{}/yt-dlp_linux", base_url, ytdlp_version)),
+        ]
+    } else if let Some(platform_binary) = current_platform {
+        vec![platform_binary]
+    } else {
+        println!("cargo:warning=Unsupported platform, skipping yt-dlp download");
+        return;
+    };
     
     for (filename, url) in binaries {
         let dest_path = out_dir.join(filename);

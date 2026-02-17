@@ -10,6 +10,7 @@ import { DownloadTable } from "./components/downloads/DownloadTable";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { AddDownloadDialog } from "./components/downloads/AddDownloadDialog";
 import { AddCategoryDialog } from "./components/dialogs/AddCategoryDialog";
+import { DownloadHistory } from "./components/history/DownloadHistory";
 import { useDownloadEvents } from "./hooks/useTauriEvents";
 import { useTheme } from "./hooks/useTheme";
 import { useDownloadStore } from "./stores/downloadStore";
@@ -110,6 +111,7 @@ function AppContent() {
           <Route path="/torrent" element={<DownloadTable filter="torrent" />} />
           <Route path="/video" element={<DownloadTable filter="video" />} />
           <Route path="/music" element={<DownloadTable filter="music" />} />
+          <Route path="/history" element={<DownloadHistory />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </main>

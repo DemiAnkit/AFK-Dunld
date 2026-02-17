@@ -7,7 +7,7 @@ import {
   Sliders,
   Bell
 } from "lucide-react";
-import { YouTubeSettings } from "./YouTubeSettings";
+import YouTubeSettings from "./YouTubeSettings";
 
 export function SettingsPage() {
   const { settings, updateSettings, loadSettings } = useSettingsStore();

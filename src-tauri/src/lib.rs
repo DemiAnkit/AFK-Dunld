@@ -132,6 +132,11 @@ pub fn run() {
             commands::ytdlp_commands::update_ytdlp,
             commands::ytdlp_commands::get_ytdlp_version,
             commands::ytdlp_commands::get_bundled_ytdlp_version,
+            // History commands
+            commands::history_commands::get_download_history,
+            commands::history_commands::get_history_stats,
+            commands::history_commands::clear_download_history,
+            commands::history_commands::export_history,
             // Settings commands
             commands::settings_commands::get_settings,
             commands::settings_commands::get_setting,

@@ -70,6 +70,11 @@ src-tauri\dev_output.txt
 tmp_rovodev_tauri_dev_error.txt
 BUNDLED_YTDLP_COMPLETE.md
 BUNDLED_YTDLP_IMPLEMENTATION.md
+BUILD_OPTIMIZATION_GUIDE.md
+ENHANCEMENTS_COMPLETE.md
+YTDLP_BUNDLING_GUIDE.md
+QUICK_START_ENHANCEMENTS.md
+FINAL_SUMMARY.md
 
 
 .vscode
@@ -86,3 +91,5 @@ compile_errors.txt
 src-tauri\build_output.txt
 src-tauri\build_errors.txt
 
+
+src-tauri\build_output.txt

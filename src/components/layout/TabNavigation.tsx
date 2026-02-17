@@ -1,5 +1,5 @@
 // src/components/layout/TabNavigation.tsx
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
   Download, 
   CheckCircle, 
@@ -9,7 +9,8 @@ import {
   Music,
   Plus,
   Folder,
-  Youtube
+  Youtube,
+  History
 } from "lucide-react";
 import { useUIStore } from "../../stores/uiStore";
 
@@ -29,6 +30,7 @@ export function TabNavigation() {
     { path: "/torrent", icon: Download, label: "Torrent" },
     { path: "/video", icon: Film, label: "Video" },
     { path: "/music", icon: Music, label: "Music" },
+    { path: "/history", icon: History, label: "History" },
   ];
 
   return (
