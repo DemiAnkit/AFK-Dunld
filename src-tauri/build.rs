@@ -10,7 +10,9 @@ fn main() {
 }
 
 fn download_ytdlp_binaries() {
+    // Only rerun if build.rs changes, not on every build
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=resources/bin/ytdlp-version.txt");
     
     let out_dir = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
         .join("resources")
@@ -19,6 +21,20 @@ fn download_ytdlp_binaries() {
     // Create resources/bin directory if it doesn't exist
     if let Err(e) = fs::create_dir_all(&out_dir) {
         eprintln!("Warning: Failed to create resources/bin directory: {}", e);
+        return;
+    }
+    
+    // Check if all binaries already exist
+    let version_file = out_dir.join("ytdlp-version.txt");
+    let all_exist = ["yt-dlp.exe", "yt-dlp_macos", "yt-dlp_linux"]
+        .iter()
+        .all(|name| {
+            let path = out_dir.join(name);
+            path.exists() && fs::metadata(&path).map(|m| m.len() > 1000000).unwrap_or(false)
+        });
+    
+    if all_exist && version_file.exists() {
+        // All binaries exist, skip download
         return;
     }
     
@@ -60,7 +76,7 @@ fn download_ytdlp_binaries() {
         
         // Skip if already downloaded
         if dest_path.exists() {
-            println!("cargo:warning=Already exists: {:?}", filename);
+            // Silently skip if file already exists
             continue;
         }
         

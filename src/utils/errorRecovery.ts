@@ -117,10 +117,10 @@ export async function apiCallWithRetry<T>(
 export async function retryAllFailed(): Promise<number> {
   try {
     const downloads = await invoke<any[]>('get_all_downloads');
-    const failed = downloads.filter(d => d.status === 'failed' || d.status === 'error');
+    const failed = downloads.filter((d: any) => d.status === 'failed' || d.status === 'error');
     
     if (failed.length === 0) {
-      toast.info('No failed downloads to retry');
+      toast.success('No failed downloads to retry');
       return 0;
     }
     
@@ -148,12 +148,12 @@ export async function retryAllFailed(): Promise<number> {
  * Auto-recovery for crashed downloads
  */
 export function enableAutoRecovery(): () => void {
-  let recoveryInterval: NodeJS.Timeout;
+  let recoveryInterval: any;
   
   const checkAndRecover = async () => {
     try {
       const downloads = await invoke<any[]>('get_all_downloads');
-      const stalled = downloads.filter(d => {
+      const stalled = downloads.filter((d: any) => {
         // Check if download has been "downloading" for too long without progress
         if (d.status !== 'downloading') return false;
         
@@ -198,6 +198,7 @@ export function enableAutoRecovery(): () => void {
  * Error boundary fallback
  */
 export function handleGlobalError(error: Error, errorInfo: any): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   console.error('Global error caught:', error, errorInfo);
   
   // Log to backend if possible

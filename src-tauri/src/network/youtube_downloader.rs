@@ -108,12 +108,73 @@ impl YouTubeDownloader {
         debug!("Fetching available qualities for: {}", url);
 
         let cmd = self.get_ytdlp_command();
+        
+        // Build args with browser cookies for authentication
+        let mut args = vec![
+            "-F".to_string(),  // List all formats
+            "--dump-json".to_string(),
+            "--js-runtimes".to_string(),
+            "node".to_string(),
+        ];
+        
+        // Try to use browser cookies for authentication (helps with age-restricted/sign-in videos)
+        let browsers = ["chrome", "firefox", "edge", "brave"];
+        let mut cookie_added = false;
+        
+        for browser in &browsers {
+            let browser_available = match *browser {
+                "chrome" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Google/Chrome").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Google/Chrome").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/google-chrome").exists() }
+                },
+                "firefox" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("APPDATA").unwrap_or_default()).join("Mozilla/Firefox").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Firefox").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".mozilla/firefox").exists() }
+                },
+                "edge" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Microsoft/Edge").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Microsoft Edge").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/microsoft-edge").exists() }
+                },
+                "brave" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/BraveSoftware/Brave-Browser").exists() }
+                },
+                _ => false,
+            };
+            
+            if browser_available {
+                args.push("--cookies-from-browser".to_string());
+                args.push(browser.to_string());
+                cookie_added = true;
+                info!("Using cookies from browser {} for quality info", browser);
+                break;
+            }
+        }
+        
+        if !cookie_added {
+            debug!("No browser cookies available for quality info");
+        }
+        
+        args.push(url.to_string());
+        
         let output = Command::new(&cmd)
-            .args(&[
-                "-F",  // List all formats
-                "--dump-json",
-                url,
-            ])
+            .args(&args)
             .output()
             .await
             .context("Failed to fetch available qualities")?;
@@ -174,8 +235,8 @@ impl YouTubeDownloader {
         }
 
         // Check if yt-dlp is installed
-        if !Self::check_installation().await? {
-            bail!("yt-dlp is not installed. Please install it from https://github.com/yt-dlp/yt-dlp");
+        if !self.check_installation().await? {
+            bail!("yt-dlp is not available. Please ensure the application is properly installed.");
         }
 
         // Ensure output directory exists
@@ -234,6 +295,62 @@ impl YouTubeDownloader {
             format!("{}/%(title)s.%(ext)s", output_dir)
         };
         
+        // Try to use browser cookies for authentication (helps with age-restricted/sign-in videos)
+        // Try multiple browsers in order of popularity
+        let browsers = ["chrome", "firefox", "edge", "brave"];
+        let mut cookie_added = false;
+        
+        for browser in &browsers {
+            // Try to detect if browser is available by checking common paths
+            let browser_available = match *browser {
+                "chrome" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Google/Chrome").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Google/Chrome").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/google-chrome").exists() }
+                },
+                "firefox" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("APPDATA").unwrap_or_default()).join("Mozilla/Firefox").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Firefox").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".mozilla/firefox").exists() }
+                },
+                "edge" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Microsoft/Edge").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Microsoft Edge").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/microsoft-edge").exists() }
+                },
+                "brave" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/BraveSoftware/Brave-Browser").exists() }
+                },
+                _ => false,
+            };
+            
+            if browser_available {
+                args.push("--cookies-from-browser");
+                args.push(browser);
+                cookie_added = true;
+                info!("Using cookies from browser: {}", browser);
+                break;
+            }
+        }
+        
+        if !cookie_added {
+            warn!("No browser cookies available - age-restricted videos may fail");
+        }
+        
         // Common options for better compatibility and performance
         args.extend_from_slice(&[
             "--progress",              // Show progress
@@ -247,6 +364,7 @@ impl YouTubeDownloader {
             "--encoding", "UTF-8",     // Force UTF-8 encoding
             "--retries", "10",         // Retry failed fragments
             "--fragment-retries", "10",
+            "--js-runtimes", "node",  // Enable Node.js for YouTube signature decoding
             "-o", &output_template,
             &options.url,
         ]);
@@ -399,6 +517,56 @@ impl YouTubeDownloader {
             format!("{}/%(title)s.%(ext)s", output_dir)
         };
 
+        // Try to use browser cookies for authentication
+        let browsers = ["chrome", "firefox", "edge", "brave"];
+        let mut cookie_added = false;
+        
+        for browser in &browsers {
+            let browser_available = match *browser {
+                "chrome" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Google/Chrome").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Google/Chrome").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/google-chrome").exists() }
+                },
+                "firefox" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("APPDATA").unwrap_or_default()).join("Mozilla/Firefox").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Firefox").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".mozilla/firefox").exists() }
+                },
+                "edge" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Microsoft/Edge").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Microsoft Edge").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/microsoft-edge").exists() }
+                },
+                "brave" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/BraveSoftware/Brave-Browser").exists() }
+                },
+                _ => false,
+            };
+            
+            if browser_available {
+                args.push("--cookies-from-browser");
+                args.push(browser);
+                cookie_added = true;
+                info!("Using cookies from browser: {}", browser);
+                break;
+            }
+        }
+        
         args.extend_from_slice(&[
             "--progress",
             "--newline",
@@ -411,6 +579,7 @@ impl YouTubeDownloader {
             "--encoding", "UTF-8",
             "--retries", "10",
             "--fragment-retries", "10",
+            "--js-runtimes", "node",  // Enable Node.js for YouTube signature decoding
             "-o", &output_template,
             &options.url,
         ]);
@@ -591,13 +760,74 @@ impl YouTubeDownloader {
         debug!("Fetching video info for: {}", url);
 
         let cmd = self.get_ytdlp_command();
+        
+        // Build args with browser cookies for authentication
+        let mut args = vec![
+            "--dump-json".to_string(),
+            "--no-playlist".to_string(),
+            "--skip-download".to_string(),
+            "--js-runtimes".to_string(),
+            "node".to_string(),
+        ];
+        
+        // Try to use browser cookies for authentication (helps with age-restricted/sign-in videos)
+        let browsers = ["chrome", "firefox", "edge", "brave"];
+        let mut cookie_added = false;
+        
+        for browser in &browsers {
+            let browser_available = match *browser {
+                "chrome" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Google/Chrome").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Google/Chrome").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/google-chrome").exists() }
+                },
+                "firefox" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("APPDATA").unwrap_or_default()).join("Mozilla/Firefox").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Firefox").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".mozilla/firefox").exists() }
+                },
+                "edge" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("Microsoft/Edge").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/Microsoft Edge").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/microsoft-edge").exists() }
+                },
+                "brave" => {
+                    #[cfg(target_os = "windows")]
+                    { std::path::Path::new(&std::env::var("LOCALAPPDATA").unwrap_or_default()).join("BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "macos")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join("Library/Application Support/BraveSoftware/Brave-Browser").exists() }
+                    #[cfg(target_os = "linux")]
+                    { std::path::Path::new(&std::env::var("HOME").unwrap_or_default()).join(".config/BraveSoftware/Brave-Browser").exists() }
+                },
+                _ => false,
+            };
+            
+            if browser_available {
+                args.push("--cookies-from-browser".to_string());
+                args.push(browser.to_string());
+                cookie_added = true;
+                info!("Using cookies from browser {} for video info", browser);
+                break;
+            }
+        }
+        
+        if !cookie_added {
+            debug!("No browser cookies available for video info");
+        }
+        
+        args.push(url.to_string());
+        
         let output = Command::new(&cmd)
-            .args(&[
-                "--dump-json",
-                "--no-playlist",
-                "--skip-download",
-                url,
-            ])
+            .args(&args)
             .output()
             .await
             .context("Failed to execute yt-dlp for video info")?;

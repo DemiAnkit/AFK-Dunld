@@ -37,7 +37,7 @@ pub async fn get_logs_by_category(
 }
 
 #[tauri::command]
-pub async fn get_download_history(
+pub async fn get_logger_download_history(
     state: State<'_, AppState>,
     limit: Option<usize>,
 ) -> Result<Vec<DownloadHistoryEntry>, String> {
@@ -61,7 +61,7 @@ pub async fn clear_logs(
 }
 
 #[tauri::command]
-pub async fn clear_download_history(
+pub async fn clear_logger_download_history(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     state.logger.clear_history().await;

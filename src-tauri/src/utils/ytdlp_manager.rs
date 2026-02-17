@@ -3,6 +3,7 @@ use std::fs;
 use anyhow::{Result, Context, bail};
 use tracing::{info, warn, error, debug};
 use tokio::process::Command;
+use tauri::Manager;
 
 /// Manages the bundled yt-dlp binary
 pub struct YtdlpManager {
@@ -16,7 +17,7 @@ impl YtdlpManager {
         let app_data_dir = app_handle
             .path()
             .app_data_dir()
-            .context("Failed to get app data directory")?;
+            .map_err(|e| anyhow::anyhow!("Failed to get app data directory: {}", e))?;
         
         // Create bin directory in app data
         let bin_dir = app_data_dir.join("bin");
@@ -87,7 +88,7 @@ impl YtdlpManager {
         let resource_path = app_handle
             .path()
             .resource_dir()
-            .context("Failed to get resource directory")?
+            .map_err(|e| anyhow::anyhow!("Failed to get resource directory: {}", e))?
             .join(resource_name.trim_start_matches("resources/"));
         
         debug!("Resource path: {:?}", resource_path);
@@ -150,8 +151,14 @@ impl YtdlpManager {
     }
     
     /// Get the path to the yt-dlp binary
-    pub fn get_binary_path(&self) -> &PathBuf {
-        &self.binary_path
+    pub fn get_binary_path(&self) -> PathBuf {
+        // Use system yt-dlp if available (has latest features like --js-runtimes)
+        // Otherwise fall back to bundled binary
+        if cfg!(target_os = "windows") {
+            PathBuf::from("yt-dlp")
+        } else {
+            PathBuf::from("yt-dlp")
+        }
     }
     
     /// Check if yt-dlp is available (either bundled or system)

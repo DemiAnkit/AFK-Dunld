@@ -181,10 +181,10 @@ pub fn run() {
             commands::logging_commands::get_logs,
             commands::logging_commands::get_logs_by_level,
             commands::logging_commands::get_logs_by_category,
-            commands::logging_commands::get_download_history,
+            commands::logging_commands::get_logger_download_history,
             commands::logging_commands::get_performance_metrics,
             commands::logging_commands::clear_logs,
-            commands::logging_commands::clear_download_history,
+            commands::logging_commands::clear_logger_download_history,
             // Security commands
             commands::security_commands::encrypt_credential,
             commands::security_commands::decrypt_credential,
