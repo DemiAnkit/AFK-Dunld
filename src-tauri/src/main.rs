@@ -10,7 +10,7 @@ mod state;
 mod utils;
 mod events;
 
-use tauri::Manager;
+use tauri::{Manager, Emitter};
 use state::app_state::AppState;
 use url::Url;
 
@@ -113,19 +113,10 @@ fn main() {
             // Setup system tray
             services::tray_service::setup_tray(app)?;
 
-            // Setup deep link handler for browser extension protocol
-            let app_handle_clone = app.handle().clone();
-            let state_clone = app_state.clone();
-            tauri_plugin_deep_link::register("afkdunld", move |request| {
-                let app_handle = app_handle_clone.clone();
-                let state = state_clone.clone();
-                
-                tauri::async_runtime::spawn(async move {
-                    if let Err(e) = handle_deep_link(request, app_handle, state).await {
-                        tracing::error!("Failed to handle deep link: {}", e);
-                    }
-                });
-            })?;
+            // TODO: Setup deep link handler for browser extension protocol
+            // The tauri-plugin-deep-link v2 API has changed
+            // Need to use the new API which likely involves listening to events
+            // For now, commenting out until we can investigate the correct usage
 
             // Start clipboard monitor
             let handle = app.handle().clone();

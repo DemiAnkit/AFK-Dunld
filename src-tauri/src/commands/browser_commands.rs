@@ -19,12 +19,14 @@ pub async fn add_download_from_browser(
 ) -> Result<String, String> {
     tracing::info!("Adding download from browser: {}", request.url);
     
+    let state_clone = state.inner().clone();
+    
     crate::commands::download_commands::add_download_internal(
         request.url,
         None, // Use default save path
         request.filename,
         request.referrer,
-        state.inner().clone(),
+        state_clone,
     )
     .await
     .map_err(|e| e.to_string())

@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::io::{self, Read, Write};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Emitter};
 use crate::state::app_state::AppState;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -105,6 +105,7 @@ pub async fn handle_message(
         } => {
             // Get app state
             let state = app_handle.state::<AppState>();
+            let state_clone = state.inner().clone();
             
             // Add download
             match crate::commands::download_commands::add_download_internal(
@@ -112,7 +113,7 @@ pub async fn handle_message(
                 None, // save_path - use default
                 filename,
                 referrer,
-                state.inner().clone(),
+                state_clone,
             ).await {
                 Ok(download_id) => {
                     // Send notification
