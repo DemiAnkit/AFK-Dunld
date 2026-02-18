@@ -3,7 +3,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use crate::state::app_state::AppState;
-use crate::utils::error::AppError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BrowserDownloadRequest {

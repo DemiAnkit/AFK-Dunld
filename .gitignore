@@ -31,6 +31,7 @@ acli.exe
 install-code.md
 
 .vscode
+.github
 docs
 
 
@@ -50,4 +51,21 @@ rebuild.bat
 
 #error throw
 src-tauri\build_errors.txt
+build_errors.txt
 src-tauri\compile_errors.txt
+compile_errors.txt
+
+
+# unwanted
+PHASE4_IMPLEMENTATION.md
+PHASE4_SUMMARY.md
+QUICK_START_BROWSER_EXTENSION.md
+
+browser-extension\TEST_GUIDE.md
+TEST_GUIDE.md
+BROWSER_EXTENSIONS_COMPLETE.md
+
+browser-extension\INSTALL_INSTRUCTIONS.md
+INSTALL_INSTRUCTIONS.md
+BUILD_STATUS.md
+PHASE4_BUILD_FIXES.md

@@ -5,9 +5,11 @@ import {
   Palette, 
   Download, 
   Sliders,
-  Bell
+  Bell,
+  Globe
 } from "lucide-react";
 import { YouTubeSettings } from "./YouTubeSettings";
+import BrowserIntegrationSettings from "./BrowserIntegrationSettings";
 
 export function SettingsPage() {
   const { settings, updateSettings, loadSettings } = useSettingsStore();
@@ -214,6 +216,15 @@ export function SettingsPage() {
         {/* YouTube Settings */}
         <section className="bg-gray-900 rounded-lg p-6 border border-gray-800">
           <YouTubeSettings />
+        </section>
+
+        {/* Browser Integration */}
+        <section className="bg-gray-900 rounded-lg p-6 border border-gray-800">
+          <div className="flex items-center gap-3 mb-4">
+            <Globe className="w-5 h-5 text-cyan-500" />
+            <h3 className="text-lg font-semibold text-white">Browser Integration</h3>
+          </div>
+          <BrowserIntegrationSettings />
         </section>
       </div>
     </div>
