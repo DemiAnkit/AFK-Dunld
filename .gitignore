@@ -54,6 +54,9 @@ src-tauri\build_errors.txt
 build_errors.txt
 src-tauri\compile_errors.txt
 compile_errors.txt
+src-tauri\error_log.txt
+error_log.txt
+
 
 
 # unwanted

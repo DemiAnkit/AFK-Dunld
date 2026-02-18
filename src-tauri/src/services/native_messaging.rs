@@ -134,14 +134,16 @@ pub async fn handle_message(
         
         NativeMessage::GetStatus => {
             let state = app_handle.state::<AppState>();
-            let downloads = state.download_manager.get_all_downloads().await;
+            let downloads = state.db.get_all_downloads().await.unwrap_or_default();
+            
+            use crate::core::download_task::DownloadStatus;
             
             let active_downloads = downloads.iter()
-                .filter(|d| matches!(d.status.as_str(), "downloading" | "pending"))
+                .filter(|d| matches!(d.status, DownloadStatus::Downloading | DownloadStatus::Queued))
                 .count();
             
             let total_speed: f64 = downloads.iter()
-                .filter(|d| d.status == "downloading")
+                .filter(|d| d.status == DownloadStatus::Downloading)
                 .map(|d| d.speed)
                 .sum();
             
