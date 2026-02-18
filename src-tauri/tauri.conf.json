@@ -23,11 +23,20 @@
         "decorations": true,
         "transparent": false,
         "visible": true,
-        "center": true
+        "center": true,
+        "url": "index.html"
       }
     ],
     "security": {
       "csp": null
+    }
+  },
+  "plugins": {
+    "deepLink": {
+      "mobile": [],
+      "desktop": {
+        "schemes": ["afkdunld"]
+      }
     }
   },
   "bundle": {

@@ -1,3 +1,4 @@
+pub mod browser_commands;
 pub mod category_commands;
 pub mod download_commands;
 pub mod queue_commands;

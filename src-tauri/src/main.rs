@@ -12,6 +12,72 @@ mod events;
 
 use tauri::Manager;
 use state::app_state::AppState;
+use url::Url;
+
+// Handle deep link protocol from browser extensions
+async fn handle_deep_link(
+    url: String,
+    app_handle: tauri::AppHandle,
+    state: AppState,
+) -> Result<(), String> {
+    tracing::info!("Received deep link: {}", url);
+    
+    // Parse the URL
+    let parsed_url = Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
+    
+    // Handle different paths
+    match parsed_url.path() {
+        "/download" | "download" => {
+            // Extract query parameters
+            let query_pairs: std::collections::HashMap<String, String> = parsed_url
+                .query_pairs()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            
+            let download_url = query_pairs.get("url")
+                .ok_or("Missing URL parameter")?;
+            
+            let referrer = query_pairs.get("referrer").cloned();
+            let filename = query_pairs.get("filename").cloned();
+            
+            // Add download using internal helper
+            match commands::download_commands::add_download_internal(
+                download_url.clone(),
+                None,
+                filename,
+                referrer,
+                state.clone(),
+            ).await {
+                Ok(download_id) => {
+                    tracing::info!("Download added from deep link: {}", download_id);
+                    
+                    // Show window and bring to front
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                    
+                    // Send notification
+                    let _ = app_handle.emit("download-added", &download_id);
+                    
+                    Ok(())
+                }
+                Err(e) => Err(format!("Failed to add download: {}", e))
+            }
+        }
+        "/open" | "open" => {
+            // Just bring app to front
+            if let Some(window) = app_handle.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            Ok(())
+        }
+        _ => {
+            Err(format!("Unknown deep link path: {}", parsed_url.path()))
+        }
+    }
+}
 
 fn main() {
     tracing_subscriber::fmt()
@@ -29,6 +95,7 @@ fn main() {
             None,
         ))
         .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+        .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             // Get app data directory
             let app_data_dir = app
@@ -45,6 +112,20 @@ fn main() {
 
             // Setup system tray
             services::tray_service::setup_tray(app)?;
+
+            // Setup deep link handler for browser extension protocol
+            let app_handle_clone = app.handle().clone();
+            let state_clone = app_state.clone();
+            tauri_plugin_deep_link::register("afkdunld", move |request| {
+                let app_handle = app_handle_clone.clone();
+                let state = state_clone.clone();
+                
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = handle_deep_link(request, app_handle, state).await {
+                        tracing::error!("Failed to handle deep link: {}", e);
+                    }
+                });
+            })?;
 
             // Start clipboard monitor
             let handle = app.handle().clone();
@@ -198,6 +279,11 @@ fn main() {
             services::notification_service::set_notifications_enabled,
             services::notification_service::test_notification,
             services::tray_service::handle_tray_menu_click,
+            // Browser extension commands
+            commands::browser_commands::add_download_from_browser,
+            commands::browser_commands::is_browser_extension_available,
+            commands::browser_commands::install_browser_extension_support,
+            commands::browser_commands::uninstall_browser_extension_support,
         ])
         .run(tauri::generate_context!())
         .expect("error while running application");

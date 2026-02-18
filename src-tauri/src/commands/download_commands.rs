@@ -812,6 +812,54 @@ pub async fn get_file_size(
     Ok(metadata.len())
 }
 
+// Internal helper for browser extension integration
+pub async fn add_download_internal(
+    url: String,
+    save_path: Option<String>,
+    filename: Option<String>,
+    referrer: Option<String>,
+    state: AppState,
+) -> Result<String, anyhow::Error> {
+    let request = AddDownloadRequest {
+        url: url.clone(),
+        save_path,
+        file_name: filename,
+        segments: None,
+        max_retries: None,
+        expected_checksum: None,
+        checksum_type: None,
+        category: None,
+        priority: None,
+        youtube_format: None,
+        youtube_quality: None,
+        youtube_video_format: None,
+        youtube_audio_format: None,
+    };
+
+    // Check if URL is supported by yt-dlp
+    if YouTubeDownloader::is_supported_url(&url) {
+        let mut task = state
+            .engine
+            .create_task(&request)
+            .await?;
+        
+        task.status = DownloadStatus::Queued;
+        state.db.insert_download(&task).await?;
+        
+        Ok(task.id.to_string())
+    } else {
+        let mut task = state
+            .engine
+            .create_task(&request)
+            .await?;
+        
+        task.status = DownloadStatus::Queued;
+        state.db.insert_download(&task).await?;
+        
+        Ok(task.id.to_string())
+    }
+}
+
 // YouTube download helper function
 async fn handle_youtube_download(
     app_handle: tauri::AppHandle,

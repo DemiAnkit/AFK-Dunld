@@ -1,0 +1,9 @@
+{
+  "name": "com.ankit.afkdunld",
+  "description": "AFK-Dunld Download Manager Native Messaging Host",
+  "path": "REPLACE_WITH_EXECUTABLE_PATH",
+  "type": "stdio",
+  "allowed_extensions": [
+    "afkdunld@ankit.com"
+  ]
+}
