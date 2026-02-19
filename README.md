@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![AFK-Dunld Logo](src-tauri/icons/128x128.png)
+![AFK-Dunld Logo](src-tauri/icons/192x192.png)
 
 **A powerful, feature-rich download manager with built-in YouTube support**
 
