@@ -3,6 +3,11 @@
   "name": "AFK-Dunld Browser Extension",
   "version": "1.0.0",
   "description": "Integrate downloads with AFK-Dunld desktop download manager",
+  "applications": {
+    "gecko": {
+      "id": "afkdunld@ankit.com"
+    }
+  },
   "permissions": [
     "contextMenus",
     "downloads",

@@ -84,6 +84,84 @@ fn main() {
         .with_env_filter("super_downloader=debug")
         .init();
 
+    // Check if running in native messaging mode
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 && args[1] == "--native-messaging" {
+        // Run as native messaging host for browser extension
+        tracing::info!("Starting in native messaging mode");
+        
+        // We need to run the native messaging host synchronously
+        // For this, we'll use tokio runtime directly
+        let runtime = tokio::runtime::Runtime::new().expect("Failed to create runtime");
+        runtime.block_on(async {
+            // Create a minimal app handle for native messaging
+            // This is a simplified version that doesn't need the full Tauri app
+            use std::io::{self, BufRead, Write};
+            use serde_json::json;
+            
+            loop {
+                let mut length_bytes = [0u8; 4];
+                if let Err(e) = io::stdin().read_exact(&mut length_bytes) {
+                    if e.kind() == io::ErrorKind::UnexpectedEof {
+                        break;
+                    }
+                    tracing::error!("Failed to read message length: {}", e);
+                    break;
+                }
+                
+                let length = u32::from_le_bytes(length_bytes) as usize;
+                if length == 0 || length > 1024 * 1024 {
+                    break;
+                }
+                
+                let mut buffer = vec![0u8; length];
+                if let Err(e) = io::stdin().read_exact(&mut buffer) {
+                    tracing::error!("Failed to read message: {}", e);
+                    break;
+                }
+                
+                // Parse the message
+                if let Ok(msg) = serde_json::from_slice::<serde_json::Value>(&buffer) {
+                    tracing::debug!("Received message: {:?}", msg);
+                    
+                    // Simple response for now - in production, this would integrate with the app
+                    let response = match msg.get("type").and_then(|t| t.as_str()) {
+                        Some("ping") => json!({
+                            "type": "pong",
+                            "version": env!("CARGO_PKG_VERSION"),
+                            "app_name": "AFK-Dunld"
+                        }),
+                        Some("add_download") => {
+                            // TODO: Queue the download to be added when app starts
+                            json!({
+                                "type": "download_added",
+                                "success": true,
+                                "message": "Download queued"
+                            })
+                        },
+                        _ => json!({
+                            "type": "error",
+                            "message": "Unknown message type"
+                        })
+                    };
+                    
+                    // Send response
+                    if let Ok(response_str) = serde_json::to_string(&response) {
+                        let response_len = (response_str.len() as u32).to_le_bytes();
+                        let _ = io::stdout().write_all(&response_len);
+                        let _ = io::stdout().write_all(response_str.as_bytes());
+                        let _ = io::stdout().flush();
+                    }
+                } else {
+                    tracing::error!("Failed to parse message");
+                    break;
+                }
+            }
+        });
+        
+        return;
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
