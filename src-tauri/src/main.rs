@@ -96,12 +96,15 @@ fn main() {
         runtime.block_on(async {
             // Create a minimal app handle for native messaging
             // This is a simplified version that doesn't need the full Tauri app
-            use std::io::{self, BufRead, Write};
+            use std::io::{self, Read, Write};
             use serde_json::json;
+            
+            let mut stdin = io::stdin();
+            let mut stdout = io::stdout();
             
             loop {
                 let mut length_bytes = [0u8; 4];
-                if let Err(e) = io::stdin().read_exact(&mut length_bytes) {
+                if let Err(e) = stdin.read_exact(&mut length_bytes) {
                     if e.kind() == io::ErrorKind::UnexpectedEof {
                         break;
                     }
@@ -115,7 +118,7 @@ fn main() {
                 }
                 
                 let mut buffer = vec![0u8; length];
-                if let Err(e) = io::stdin().read_exact(&mut buffer) {
+                if let Err(e) = stdin.read_exact(&mut buffer) {
                     tracing::error!("Failed to read message: {}", e);
                     break;
                 }
@@ -148,9 +151,9 @@ fn main() {
                     // Send response
                     if let Ok(response_str) = serde_json::to_string(&response) {
                         let response_len = (response_str.len() as u32).to_le_bytes();
-                        let _ = io::stdout().write_all(&response_len);
-                        let _ = io::stdout().write_all(response_str.as_bytes());
-                        let _ = io::stdout().flush();
+                        let _ = stdout.write_all(&response_len);
+                        let _ = stdout.write_all(response_str.as_bytes());
+                        let _ = stdout.flush();
                     }
                 } else {
                     tracing::error!("Failed to parse message");

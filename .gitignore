@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node.js
 node_modules
 dist
 dist-ssr
@@ -23,59 +24,81 @@ dist-ssr
 *.sln
 *.sw?
 
-#acli ignore
-acli.exe
+# Rust/Cargo
+src-tauri/target/
+src-tauri/Cargo.lock
+**/target/
+**/*.rs.bk
 
+# Build artifacts and output files
+**/build_output.txt
+**/build_errors.txt
+**/dev_output.txt
+**/compile_errors.txt
+**/error_log.txt
+**/check_output.txt
+**/*_output.txt
+**/*_errors.txt
+**/compile_*.txt
+**/error_log*.txt
 
-#some md files
-install-code.md
+# Temporary files created by Rovo Dev or development
+tmp_rovodev_*
+*.tmp
+*.temp
+*.cache
 
-.vscode
-.github
-docs
+# Documentation files (optional - uncomment to ignore)
+# install-code.md
+# PHASE4_COMPLETION_REPORT.md
+# COMPILATION_FIX_SUMMARY.md
+.gitignore_explanation.md
 
-
-
-src-tauri\build_output.txt
-src-tauri\build_errors.txt
-
-
-
-# rebuilder and port killer
+# Development scripts
 SIMPLE_START.ps1
 SIMPLE_START.bat
 kill_port_1420.ps1
 rebuild.sh
 rebuild.bat
 
+# CLI tools
+acli.exe
 
-#error throw
-src-tauri\build_errors.txt
-build_errors.txt
-src-tauri\compile_errors.txt
-compile_errors.txt
-src-tauri\error_log.txt
-error_log.txt
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
 
+# IDE
+.vscode
+.github
+.fleet
 
+# Database files (development)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
 
-# unwanted
-PHASE4_IMPLEMENTATION.md
-PHASE4_SUMMARY.md
-QUICK_START_BROWSER_EXTENSION.md
+# Downloads directory (if used for testing)
+downloads/
+test_downloads/
 
-browser-extension\TEST_GUIDE.md
-TEST_GUIDE.md
-BROWSER_EXTENSIONS_COMPLETE.md
+# Logs from services
+*.log.*
+logs/
 
-browser-extension\INSTALL_INSTRUCTIONS.md
-INSTALL_INSTRUCTIONS.md
-BUILD_STATUS.md
-PHASE4_BUILD_FIXES.md
-BUILD_FIXES_APPLIED.md
-ERRORS_FIXED_SUMMARY.md
+# Test files
+test_*.txt
+test_*.json
+test_*.log
 
-tmp_rovodev_test_phase4.md
-PHASE4_COMPLETION_REPORT.md
+# Coverage reports
+coverage/
+*.lcov
 
-
+# Package manager lock files (optional - uncomment if not tracking)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
