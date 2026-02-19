@@ -81,7 +81,7 @@ function AppContent() {
   }, [fetchDownloads, loadSettings, checkInstallation]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-white">
+    <div className="flex flex-col h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-white transition-colors">
       <Header />
       
       {/* yt-dlp Warning - Should rarely appear with bundled version */}
@@ -110,7 +110,7 @@ function AppContent() {
       )}
       
       <TabNavigation />
-      <main className="flex-1 overflow-hidden bg-gray-950">
+      <main className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-950">
         <Routes>
           <Route path="/" element={<DownloadTable filter="all" />} />
           <Route path="/missing" element={<DownloadTable filter="missing" />} />

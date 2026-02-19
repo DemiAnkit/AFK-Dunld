@@ -13,6 +13,16 @@ export function useDownloadEvents() {
 
     const setup = async () => {
       try {
+        // Download added
+        const unlisten0 = await listen<Download>(
+          "download-added",
+          (event) => {
+            toast.success(`📥 Added: ${event.payload.fileName}`);
+            fetchDownloads(); // Refresh the downloads list
+          }
+        );
+        listeners.push(unlisten0);
+
         // Download progress updates
         const unlisten1 = await listen<DownloadProgress>(
           "download-progress",

@@ -534,8 +534,6 @@ pub async fn open_file_location(
     
     // Open the folder and select the file if possible
     let file_path = task.save_path.clone();
-    #[allow(unused_variables)]
-    let folder_path_clone = folder_path.clone();
     
     let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
         // Try to reveal the file in the folder (platform-specific)
@@ -580,13 +578,24 @@ pub async fn open_file_location(
         
         #[cfg(target_os = "linux")]
         {
-            // On Linux, just open the folder since file selection varies by DE
-            opener::open(&folder_path_clone).map_err(|e| format!("Failed to open folder: {}", e))
+            use std::process::Command;
+            // Try to use file manager to show the file
+            // First try xdg-open with the parent folder
+            let folder = file_path.parent().ok_or("Invalid path")?;
+            let result = Command::new("xdg-open")
+                .arg(folder)
+                .spawn();
+            
+            if let Err(e) = result {
+                return Err(format!("Failed to open folder: {}", e));
+            }
+            Ok(())
         }
         
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         {
-            opener::open(&folder_path_clone).map_err(|e| format!("Failed to open folder: {}", e))
+            let folder = file_path.parent().ok_or("Invalid path")?;
+            opener::open(folder).map_err(|e| format!("Failed to open folder: {}", e))
         }
     })
     .await
@@ -923,6 +932,9 @@ async fn handle_youtube_download(
 
     // Save to database
     state.db.insert_download(&task).await.map_err(|e| e.to_string())?;
+
+    // Emit download-added event so UI updates immediately
+    let _ = app_handle.emit("download-added", &task);
 
     // Download in background
     let options = YouTubeDownloadOptions {

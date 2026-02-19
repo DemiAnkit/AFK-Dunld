@@ -34,7 +34,7 @@ export function TabNavigation() {
   ];
 
   return (
-    <div className="bg-gray-900 border-b border-gray-800">
+    <div className="bg-gray-100 dark:bg-gray-900 border-b border-gray-300 dark:border-gray-800">
       <div className="flex items-center px-4 overflow-x-auto scrollbar-thin">
         {tabs.map((tab) => (
           <NavLink

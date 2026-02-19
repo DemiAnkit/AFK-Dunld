@@ -1,19 +1,21 @@
 // src/components/layout/Header.tsx
-import { Plus, FolderOpen, Pause, Play, Download, Search, List, LayoutGrid } from "lucide-react";
+import { Plus, FolderOpen, Pause, Play, Download, Search, List, LayoutGrid, Settings } from "lucide-react";
 import { useUIStore } from "../../stores/uiStore";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
-import { ThemeToggle } from "../common/ThemeToggle";
 import toast from "react-hot-toast";
 import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-shell";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export function Header() {
   const { setAddDialogOpen, searchQuery, setSearchQuery, viewMode, setViewMode } = useUIStore();
   const { downloads, pauseAll, resumeAll } = useDownloadStore();
   const { settings } = useSettingsStore();
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const activeDownloads = downloads.filter(
     (d) => d.status === "downloading" || d.status === "queued" || d.status === "connecting"
@@ -69,7 +71,7 @@ export function Header() {
   return (
     <header className={`sticky top-0 z-40 transition-all duration-300 ${
       scrolled 
-        ? 'bg-gray-950/95 backdrop-blur-xl border-b border-gray-800/80 shadow-lg shadow-black/20' 
+        ? 'bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800/80 shadow-lg' 
         : 'bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800 border-b border-gray-800'
     }`}>
       <div className="px-6 py-4">
@@ -117,7 +119,7 @@ export function Header() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search downloads by name, URL, or status..."
-                className="w-full pl-11 pr-4 py-2.5 bg-gray-900/80 border border-gray-700/50 rounded-xl 
+                className="w-full pl-11 pr-4 py-2.5 bg-gray-100 dark:bg-gray-900/80 border border-gray-300 dark:border-gray-700/50 rounded-xl text-gray-900 dark:text-white 
                          text-sm text-white placeholder-gray-500
                          focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20
                          transition-all duration-200 hover:border-gray-600"
@@ -217,7 +219,18 @@ export function Header() {
               <Play className="w-5 h-5 group-hover:scale-110 transition-transform group-hover:translate-x-0.5" />
             </button>
 
-            <ThemeToggle />
+            <button
+              onClick={() => navigate('/settings')}
+              className={`p-2 rounded-lg transition-colors ${
+                location.pathname === '/settings'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+              title="Settings"
+              aria-label="Open Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
             
             <KeyboardShortcutsHelp />
           </div>

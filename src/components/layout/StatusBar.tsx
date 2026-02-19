@@ -41,7 +41,7 @@ export function StatusBar() {
   };
 
   return (
-    <footer className="bg-gray-900 border-t border-gray-800 px-4 py-2">
+    <footer className="bg-gray-100 dark:bg-gray-900 border-t border-gray-300 dark:border-gray-800 px-4 py-2">
       <div className="flex items-center gap-4 text-xs">
         {/* Download Speed */}
         <div className="flex items-center gap-2">

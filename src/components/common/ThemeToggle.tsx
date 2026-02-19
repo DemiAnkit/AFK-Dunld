@@ -41,13 +41,18 @@ export const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
-      className="p-2 rounded-lg bg-gray-800 hover:bg-gray-700 transition-colors"
+      className={`p-2 rounded-lg transition-colors ${
+        theme === 'dark' 
+          ? 'bg-gray-800 hover:bg-gray-700' 
+          : 'bg-gray-200 hover:bg-gray-300'
+      }`}
       title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
     >
       {theme === 'dark' ? (
         <Sun className="w-5 h-5 text-yellow-400" />
       ) : (
-        <Moon className="w-5 h-5 text-gray-400" />
+        <Moon className="w-5 h-5 text-gray-700" />
       )}
     </button>
   );
