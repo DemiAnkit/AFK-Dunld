@@ -1,18 +1,22 @@
 // src/components/settings/SettingsPage.tsx
 import React from "react";
 import { useSettingsStore } from "../../stores/settingsStore";
+import { useTheme } from "../../hooks/useTheme";
 import { 
   Palette, 
   Download, 
   Sliders,
   Bell,
-  Globe
+  Globe,
+  Sun,
+  Moon
 } from "lucide-react";
 import { YouTubeSettings } from "./YouTubeSettings";
 import BrowserIntegrationSettings from "./BrowserIntegrationSettings";
 
 export function SettingsPage() {
   const { settings, updateSettings, loadSettings } = useSettingsStore();
+  const { theme, setTheme } = useTheme();
 
   React.useEffect(() => {
     loadSettings();
@@ -161,23 +165,32 @@ export function SettingsPage() {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
               Theme
             </label>
-            <div className="flex gap-2">
-              {["light", "dark", "system"].map((theme) => (
-                <button
-                  key={theme}
-                  onClick={() => updateSettings({ theme: theme as any })}
-                  className={`px-4 py-2 rounded-lg text-sm capitalize transition-colors ${
-                    settings?.theme === theme
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                  }`}
-                >
-                  {theme}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setTheme('dark')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                <Moon className="w-5 h-5" />
+                <span className="font-medium">Dark</span>
+              </button>
+              <button
+                onClick={() => setTheme('light')}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                  theme === 'light'
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                <Sun className="w-5 h-5" />
+                <span className="font-medium">Light</span>
+              </button>
             </div>
           </div>
         </section>

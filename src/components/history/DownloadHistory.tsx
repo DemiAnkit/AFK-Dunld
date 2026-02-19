@@ -249,46 +249,76 @@ export const DownloadHistory = () => {
             <p className="text-sm">Your download history will appear here</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-800">
-            {filteredHistory.map((item) => (
-              <div key={item.id} className="p-4 hover:bg-gray-900/50 transition-colors">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-white truncate">{item.file_name}</h3>
-                    <p className="text-sm text-gray-400 truncate mt-1">{item.url}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {format(new Date(item.created_at), 'MMM dd, yyyy HH:mm')}
+          <div>
+            {/* Table Header */}
+            <div className="grid grid-cols-[1fr_120px_100px_100px_180px_120px] gap-4 px-4 py-3 bg-gray-900/80 border-b border-gray-800 text-xs font-semibold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
+              <div className="flex items-center">File Name</div>
+              <div className="flex items-center">Status</div>
+              <div className="flex items-center">Size</div>
+              <div className="flex items-center">Avg Speed</div>
+              <div className="flex items-center">Date/Time</div>
+              <div className="flex items-center">Duration</div>
+            </div>
+            
+            {/* History Items */}
+            <div className="divide-y divide-gray-800">
+              {filteredHistory.map((item) => (
+                <div key={item.id} className="grid grid-cols-[1fr_120px_100px_100px_180px_120px] gap-4 px-4 py-3 hover:bg-gray-900/50 transition-colors border-b border-gray-800/50">
+                  {/* File Name */}
+                  <div className="flex flex-col justify-center min-w-0">
+                    <h3 className="font-medium text-white truncate" title={item.file_name}>
+                      {item.file_name}
+                    </h3>
+                    <p className="text-xs text-gray-400 truncate mt-0.5" title={item.url}>
+                      {item.url}
+                    </p>
+                    {item.category && (
+                      <span className="inline-block px-2 py-0.5 bg-gray-800 rounded text-xs text-gray-300 mt-1 w-fit">
+                        {item.category}
                       </span>
-                      {item.download_time && (
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDuration(item.download_time)}
-                        </span>
-                      )}
-                      {item.download_speed_avg > 0 && (
-                        <span className="flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" />
-                          {formatSpeed(item.download_speed_avg)}
-                        </span>
-                      )}
-                      {item.category && (
-                        <span className="px-2 py-0.5 bg-gray-800 rounded text-xs">
-                          {item.category}
-                        </span>
-                      )}
-                    </div>
+                    )}
                   </div>
-                  <div className="flex flex-col items-end gap-2">
+                  
+                  {/* Status */}
+                  <div className="flex items-center">
                     <span className={`text-sm font-medium ${getStatusColor(item.status)}`}>
                       {item.status}
                     </span>
-                    <span className="text-sm text-gray-400">{formatBytes(item.total_size)}</span>
+                  </div>
+                  
+                  {/* Size */}
+                  <div className="flex items-center">
+                    <span className="text-sm text-gray-300 font-medium tabular-nums">
+                      {formatBytes(item.total_size)}
+                    </span>
+                  </div>
+                  
+                  {/* Avg Speed */}
+                  <div className="flex items-center">
+                    <span className="text-sm text-blue-400 font-medium tabular-nums">
+                      {item.download_speed_avg > 0 ? formatSpeed(item.download_speed_avg) : '-'}
+                    </span>
+                  </div>
+                  
+                  {/* Date/Time */}
+                  <div className="flex flex-col justify-center">
+                    <span className="text-xs text-gray-300 font-medium">
+                      {format(new Date(item.created_at), 'MMM dd, yyyy')}
+                    </span>
+                    <span className="text-xs text-gray-500 tabular-nums">
+                      {format(new Date(item.created_at), 'HH:mm:ss')}
+                    </span>
+                  </div>
+                  
+                  {/* Duration */}
+                  <div className="flex items-center">
+                    <span className="text-sm text-gray-400 font-medium tabular-nums">
+                      {item.download_time ? formatDuration(item.download_time) : '-'}
+                    </span>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>

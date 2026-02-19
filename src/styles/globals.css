@@ -23,9 +23,17 @@
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+  
+  /* Custom animations */
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-pulse-glow: pulse-glow 2s ease-in-out infinite;
+  --animate-slide-up: slide-up 0.3s ease-out;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-scale-in: scale-in 0.2s ease-out;
 }
 
-:root {
+/* Dark theme (default) */
+:root, .dark {
   --background: 0 0% 4%;
   --foreground: 0 0% 100%;
   --card: 240 10% 8%;
@@ -46,6 +54,29 @@
   --input: 240 4% 16%;
   --ring: 217 91% 60%;
   --radius: 0.75rem;
+}
+
+/* Light theme */
+.light {
+  --background: 0 0% 100%;
+  --foreground: 0 0% 4%;
+  --card: 0 0% 98%;
+  --card-foreground: 0 0% 4%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 4%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 4% 96%;
+  --secondary-foreground: 0 0% 10%;
+  --muted: 240 4% 96%;
+  --muted-foreground: 240 4% 40%;
+  --accent: 240 4% 96%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 4% 90%;
+  --input: 240 4% 90%;
+  --ring: 217 91% 60%;
 }
 
 @layer base {

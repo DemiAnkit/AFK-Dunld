@@ -447,7 +447,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you find AFK-Dunld useful, consider supporting development:
 
-- ☕ [Buy Me a Coffee](https://buymeacoffee.com/ankitulak)
+- ☕ [Buy Me a Coffee](buymeacoffee.com/ankitulak)
 - 💳 [esewa](9803281897)
 - 🪙 Bitcoin: `Not available`
 

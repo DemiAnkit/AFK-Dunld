@@ -214,8 +214,9 @@ export function DownloadTable({ filter }: DownloadTableProps) {
       )}
       
       {/* Table Header */}
-      <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-900/80 border-b border-gray-800 text-xs font-semibold text-gray-400 uppercase tracking-wider backdrop-blur-sm">
-        <div className="col-span-1 flex items-center">
+      <div className="grid gap-4 px-4 py-3 bg-gray-900/80 border-b border-gray-800 text-xs font-semibold text-gray-400 uppercase tracking-wider backdrop-blur-sm sticky top-0 z-10"
+           style={{ gridTemplateColumns: 'auto 1fr 120px 100px 100px 180px 140px' }}>
+        <div className="flex items-center justify-center">
           <input 
             type="checkbox"
             checked={isAllSelected}
@@ -229,22 +230,22 @@ export function DownloadTable({ filter }: DownloadTableProps) {
         </div>
         <button 
           onClick={() => handleSort("fileName")}
-          className="col-span-4 flex items-center gap-2 hover:text-white transition-colors text-left"
+          className="flex items-center gap-2 hover:text-white transition-colors text-left"
         >
           File Name
           {getSortIcon("fileName")}
         </button>
-        <div className="col-span-1">Status</div>
-        <div className="col-span-1">Size</div>
-        <div className="col-span-1">Speed</div>
+        <div className="flex items-center">Status</div>
+        <div className="flex items-center">Size</div>
+        <div className="flex items-center">Speed</div>
         <button 
           onClick={() => handleSort("createdAt")}
-          className="col-span-2 flex items-center gap-2 hover:text-white transition-colors text-left"
+          className="flex items-center gap-2 hover:text-white transition-colors text-left"
         >
-          Added Date/Time
+          Date/Time
           {getSortIcon("createdAt")}
         </button>
-        <div className="col-span-2 text-right pr-4">Actions</div>
+        <div className="flex items-center justify-end pr-4">Actions</div>
       </div>
 
       {/* Table Body */}

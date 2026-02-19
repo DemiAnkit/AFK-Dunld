@@ -206,56 +206,76 @@ export const QueueManager = () => {
             <p className="text-sm">Add downloads to see them here</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
+            {/* Table Header */}
+            <div className="grid grid-cols-[auto_1fr_120px_100px_100px] gap-4 px-4 py-2 bg-gray-900/50 rounded-t-lg text-xs font-semibold text-gray-400 uppercase">
+              <div className="flex items-center justify-center">Priority</div>
+              <div>File Name</div>
+              <div>Status</div>
+              <div>Size</div>
+              <div className="text-center">Queue Position</div>
+            </div>
+            
+            {/* Queue Items */}
             {queuedDownloads.map((download, index) => (
               <div
                 key={download.id}
-                className="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-gray-700 transition-colors"
+                className="grid grid-cols-[auto_1fr_120px_100px_100px] gap-4 px-4 py-3 bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors rounded-lg"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="flex flex-col gap-1">
-                      <button
-                        onClick={() => handleChangePriority(download.id, 'up')}
-                        disabled={index === 0}
-                        className="p-1 hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <ChevronUp className="w-4 h-4 text-gray-400" />
-                      </button>
-                      <button
-                        onClick={() => handleChangePriority(download.id, 'down')}
-                        disabled={index === queuedDownloads.length - 1}
-                        className="p-1 hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
+                {/* Priority Controls */}
+                <div className="flex flex-col gap-1 items-center justify-center">
+                  <button
+                    onClick={() => handleChangePriority(download.id, 'up')}
+                    disabled={index === 0}
+                    className="p-1 hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Increase priority"
+                  >
+                    <ChevronUp className="w-4 h-4 text-gray-400" />
+                  </button>
+                  <span className="text-xs text-gray-500 font-medium">{download.priority}</span>
+                  <button
+                    onClick={() => handleChangePriority(download.id, 'down')}
+                    disabled={index === queuedDownloads.length - 1}
+                    className="p-1 hover:bg-gray-800 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="Decrease priority"
+                  >
+                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                  </button>
+                </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-white truncate">{download.file_name}</h3>
-                      <p className="text-sm text-gray-400 truncate">{download.url}</p>
-                    </div>
-                  </div>
+                {/* File Name */}
+                <div className="flex flex-col justify-center min-w-0">
+                  <h3 className="font-medium text-white truncate" title={download.file_name}>
+                    {download.file_name}
+                  </h3>
+                  <p className="text-xs text-gray-400 truncate" title={download.url}>
+                    {download.url}
+                  </p>
+                </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className={`px-3 py-1 rounded-lg text-sm ${
-                      download.status === 'Downloading'
-                        ? 'bg-blue-900/30 text-blue-300'
-                        : 'bg-purple-900/30 text-purple-300'
-                    }`}>
-                      {download.status}
-                    </div>
-                    
-                    <div className="px-3 py-1 bg-gray-800 rounded-lg text-sm text-gray-300">
-                      Priority: {download.priority}
-                    </div>
+                {/* Status */}
+                <div className="flex items-center">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                    download.status === 'Downloading'
+                      ? 'bg-blue-900/30 text-blue-300 border border-blue-500/30'
+                      : 'bg-purple-900/30 text-purple-300 border border-purple-500/30'
+                  }`}>
+                    {download.status}
+                  </span>
+                </div>
+                
+                {/* Size */}
+                <div className="flex items-center">
+                  <span className="text-sm text-gray-300 font-medium tabular-nums">
+                    {download.total_size ? formatBytes(download.total_size) : '-'}
+                  </span>
+                </div>
 
-                    {download.total_size && (
-                      <div className="text-sm text-gray-400">
-                        {formatBytes(download.total_size)}
-                      </div>
-                    )}
-                  </div>
+                {/* Queue Position */}
+                <div className="flex items-center justify-center">
+                  <span className="text-sm text-gray-400 font-medium">
+                    #{index + 1}
+                  </span>
                 </div>
               </div>
             ))}

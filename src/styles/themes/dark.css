@@ -1,62 +1,9 @@
-/* Dark Theme (Default) */
+/* Dark Theme - Using Tailwind v4 CSS variables */
 
-:root {
-  /* Background colors */
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #1a1a24;
-  --bg-tertiary: #252532;
-  --bg-hover: #303040;
-  
-  /* Text colors */
-  --text-primary: #ffffff;
-  --text-secondary: #d1d5db;
-  --text-muted: #9ca3af;
-  --text-disabled: #6b7280;
-  
-  /* Border colors */
-  --border-primary: #374151;
-  --border-secondary: #4b5563;
-  
-  /* Accent colors */
-  --accent-blue: #3b82f6;
-  --accent-blue-hover: #2563eb;
-  --accent-green: #10b981;
-  --accent-green-hover: #059669;
-  --accent-red: #ef4444;
-  --accent-red-hover: #dc2626;
-  --accent-yellow: #f59e0b;
-  --accent-yellow-hover: #d97706;
-  --accent-purple: #8b5cf6;
-  --accent-purple-hover: #7c3aed;
-  
-  /* Status colors */
-  --status-success: #10b981;
-  --status-error: #ef4444;
-  --status-warning: #f59e0b;
-  --status-info: #3b82f6;
-  
-  /* Progress colors */
-  --progress-bg: #374151;
-  --progress-fill: #3b82f6;
-  
-  /* Shadow */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  
-  /* Glassmorphism */
-  --glass-bg: rgba(26, 26, 36, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.1);
-}
-
-[data-theme="dark"] {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
+/* Dark theme colors are defined in globals.css with :root and .dark classes */
 
 /* Custom component styles for dark theme */
-.btn-primary {
+.dark .btn-primary {
   background-color: #3b82f6;
   color: #ffffff;
   font-weight: 500;
@@ -65,11 +12,11 @@
   transition: background-color 0.2s;
 }
 
-.btn-primary:hover {
+.dark .btn-primary:hover {
   background-color: #2563eb;
 }
 
-.btn-secondary {
+.dark .btn-secondary {
   background-color: #374151;
   color: #ffffff;
   font-weight: 500;
@@ -78,11 +25,11 @@
   transition: background-color 0.2s;
 }
 
-.btn-secondary:hover {
+.dark .btn-secondary:hover {
   background-color: #4b5563;
 }
 
-.btn-danger {
+.dark .btn-danger {
   background-color: #ef4444;
   color: #ffffff;
   font-weight: 500;
@@ -91,11 +38,11 @@
   transition: background-color 0.2s;
 }
 
-.btn-danger:hover {
+.dark .btn-danger:hover {
   background-color: #dc2626;
 }
 
-.btn-success {
+.dark .btn-success {
   background-color: #10b981;
   color: #ffffff;
   font-weight: 500;
@@ -104,11 +51,11 @@
   transition: background-color 0.2s;
 }
 
-.btn-success:hover {
+.dark .btn-success:hover {
   background-color: #059669;
 }
 
-.input-field {
+.dark .input-field {
   background-color: #1f2937;
   border: 1px solid #374151;
   color: #ffffff;
@@ -117,19 +64,19 @@
   transition: all 0.2s;
 }
 
-.input-field:focus {
+.dark .input-field:focus {
   outline: none;
   box-shadow: 0 0 0 2px #3b82f6;
 }
 
-.card {
+.dark .card {
   background-color: #111827;
   border: 1px solid #1f2937;
   border-radius: 0.5rem;
   padding: 1rem;
 }
 
-.card-hover {
+.dark .card-hover {
   background-color: #111827;
   border: 1px solid #1f2937;
   border-radius: 0.5rem;
@@ -138,38 +85,38 @@
   transition: border-color 0.2s;
 }
 
-.card-hover:hover {
+.dark .card-hover:hover {
   border-color: #374151;
 }
 
-.badge {
+.dark .badge {
   padding: 0.25rem 0.5rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
 }
 
-.badge-primary {
+.dark .badge-primary {
   background-color: #3b82f6;
   color: #ffffff;
 }
 
-.badge-success {
+.dark .badge-success {
   background-color: #10b981;
   color: #ffffff;
 }
 
-.badge-warning {
+.dark .badge-warning {
   background-color: #f59e0b;
   color: #ffffff;
 }
 
-.badge-danger {
+.dark .badge-danger {
   background-color: #ef4444;
   color: #ffffff;
 }
 
-.badge-secondary {
+.dark .badge-secondary {
   background-color: #374151;
   color: #ffffff;
 }
