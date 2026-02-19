@@ -447,9 +447,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you find AFK-Dunld useful, consider supporting development:
 
-- ☕ [Buy Me a Coffee](https://buymeacoffee.com/afkdunld)
-- 💳 [PayPal](https://paypal.me/afkdunld)
-- 🪙 Bitcoin: `1AfkDunld...`
+- ☕ [Buy Me a Coffee](https://buymeacoffee.com/ankitulak)
+- 💳 [esewa](9803281897)
+- 🪙 Bitcoin: `Not available`
 
 ---
 
@@ -461,9 +461,9 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes in each version.
 
 <div align="center">
 
-**Made with ❤️ by the AFK-Dunld Team**
+**Made with ❤️ by the Ankit Ulak**
 
-[Website](https://afk-dunld.com) • [Documentation](docs/) • [Blog](https://blog.afk-dunld.com)
+[Website](https://ankitulak.com.np) • [Documentation](docs/) • [Blog](https://ankitulak.com.np/blog)
 
 © 2024 AFK Downloads. All rights reserved.
 
