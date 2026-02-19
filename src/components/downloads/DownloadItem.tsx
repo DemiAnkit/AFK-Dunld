@@ -266,15 +266,14 @@ import React from "react";
             </button>
           )}
   
-          {download.status === "completed" && (
-            <button
-              onClick={handleOpenFileLocation}
-              className="p-1.5 hover:bg-gray-700 rounded transition-colors"
-              title="Open Folder"
-            >
-              <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
-            </button>
-          )}
+          {/* Open Folder - Always visible for easy access */}
+          <button
+            onClick={handleOpenFileLocation}
+            className="p-1.5 hover:bg-gray-700 rounded transition-colors"
+            title={`Open ${download.savePath ? 'file location' : 'download folder'}`}
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-blue-400" />
+          </button>
   
           <button
             onClick={() => removeDownload(download.id)}

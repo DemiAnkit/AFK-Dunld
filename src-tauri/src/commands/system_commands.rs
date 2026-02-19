@@ -108,6 +108,106 @@ fn get_disk_space(path: &std::path::Path) -> Result<(u64, u64), String> {
     }
 }
 
+/// Open the download folder in the system file manager
+#[tauri::command]
+pub async fn open_download_folder(
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    use std::process::Command;
+    
+    // Get the download path from settings or use the default from state
+    let settings_map = state.db.get_all_settings()
+        .await
+        .map_err(|e| format!("Failed to get settings: {}", e))?;
+    
+    let download_path = settings_map
+        .get("download_path")
+        .filter(|p| !p.is_empty())
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| state.download_dir.to_string_lossy().to_string());
+    
+    tracing::info!("Opening download folder: {}", download_path);
+    
+    // Check if the folder exists
+    let path = std::path::Path::new(&download_path);
+    if !path.exists() {
+        tracing::warn!("Download folder does not exist, creating: {}", download_path);
+        tokio::fs::create_dir_all(&path)
+            .await
+            .map_err(|e| format!("Failed to create download folder: {}", e))?;
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        
+        let path_str = download_path.replace("/", "\\");
+        tracing::info!("Windows: Opening with 'explorer {}'", path_str);
+        
+        let result = Command::new("explorer")
+            .creation_flags(CREATE_NO_WINDOW)
+            .arg(&path_str)
+            .spawn();
+        
+        match result {
+            Ok(_) => {
+                tracing::info!("Successfully opened Explorer");
+                Ok(())
+            }
+            Err(e) => {
+                tracing::error!("Failed to open Explorer: {}", e);
+                Err(format!("Failed to open Explorer: {}", e))
+            }
+        }
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        tracing::info!("macOS: Opening with 'open {}'", download_path);
+        
+        let result = Command::new("open")
+            .arg(&download_path)
+            .spawn();
+        
+        match result {
+            Ok(_) => {
+                tracing::info!("Successfully opened Finder");
+                Ok(())
+            }
+            Err(e) => {
+                tracing::error!("Failed to open Finder: {}", e);
+                Err(format!("Failed to open Finder: {}", e))
+            }
+        }
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        tracing::info!("Linux: Opening with 'xdg-open {}'", download_path);
+        
+        let result = Command::new("xdg-open")
+            .arg(&download_path)
+            .spawn();
+        
+        match result {
+            Ok(_) => {
+                tracing::info!("Successfully opened file manager");
+                Ok(())
+            }
+            Err(e) => {
+                tracing::error!("Failed to open file manager: {}", e);
+                Err(format!("Failed to open file manager: {}", e))
+            }
+        }
+    }
+    
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Err("Unsupported operating system".to_string())
+    }
+}
+
 /// Get OS version string
 fn get_os_version() -> String {
     #[cfg(target_os = "windows")]

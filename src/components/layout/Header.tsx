@@ -6,8 +6,8 @@ import { useSettingsStore } from "../../stores/settingsStore";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
 import toast from "react-hot-toast";
 import { useState, useEffect } from "react";
-import { open } from "@tauri-apps/plugin-shell";
 import { useNavigate, useLocation } from "react-router-dom";
+import { downloadApi } from "../../services/tauriApi";
 
 export function Header() {
   const { setAddDialogOpen, searchQuery, setSearchQuery, viewMode, setViewMode } = useUIStore();
@@ -59,12 +59,11 @@ export function Header() {
 
   const handleOpenDownloadFolder = async () => {
     try {
-      const downloadPath = settings?.downloadPath || "~/Downloads";
-      await open(downloadPath);
+      await downloadApi.openDownloadFolder();
       toast.success("Opening download folder...");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to open folder:", error);
-      toast.error("Failed to open download folder");
+      toast.error(error?.message || "Failed to open download folder");
     }
   };
 

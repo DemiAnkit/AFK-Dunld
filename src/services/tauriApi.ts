@@ -247,6 +247,14 @@ export const downloadApi = {
     }
     return await invoke<number>('get_file_size', { id });
   },
+
+  openDownloadFolder: async (): Promise<void> => {
+    if (!isTauri()) {
+      console.log('Mock: openDownloadFolder called');
+      return;
+    }
+    return await invoke('open_download_folder');
+  },
 };
 
 // YouTube/Video download commands

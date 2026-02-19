@@ -288,6 +288,7 @@ fn main() {
             commands::settings_commands::reset_settings,
             // System commands
             commands::system_commands::get_system_info,
+            commands::system_commands::open_download_folder,
             commands::system_commands::check_disk_space,
             // Scheduler commands
             commands::scheduler_commands::schedule_download,

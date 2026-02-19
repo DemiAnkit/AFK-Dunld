@@ -518,22 +518,29 @@ pub async fn open_file_location(
         .map_err(|e| e.to_string())?
         .ok_or("Download not found")?;
     
-    // Validate file path exists (for future use in better error messages)
-    let _file_exists = tokio::fs::metadata(&task.save_path).await.is_ok();
+    tracing::info!("Opening file location for: {:?}", task.save_path);
+    
+    // Validate file path exists
+    let file_exists = tokio::fs::metadata(&task.save_path).await.is_ok();
+    tracing::info!("File exists: {}", file_exists);
     
     // Get the parent directory (folder containing the file)
     let folder_path = task.save_path
         .parent()
-        .ok_or("Invalid file path")?
+        .ok_or("Invalid file path - no parent directory")?
         .to_path_buf();
+    
+    tracing::info!("Folder path: {:?}", folder_path);
     
     // Check if folder exists
     if !tokio::fs::metadata(&folder_path).await.is_ok() {
-        return Err("Folder not found on disk".to_string());
+        tracing::error!("Folder not found: {:?}", folder_path);
+        return Err(format!("Folder not found: {}", folder_path.display()));
     }
     
     // Open the folder and select the file if possible
     let file_path = task.save_path.clone();
+    tracing::info!("Attempting to open/select file: {:?}", file_path);
     
     let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
         // Try to reveal the file in the folder (platform-specific)
@@ -547,6 +554,8 @@ pub async fn open_file_location(
                 .to_string_lossy()
                 .replace("/", "\\");
             
+            tracing::info!("Windows: Opening with explorer /select,{}", file_path_str);
+            
             // Windows: Use explorer with /select to highlight the file
             // CREATE_NO_WINDOW flag (0x08000000) to prevent console window from appearing
             const CREATE_NO_WINDOW: u32 = 0x08000000;
@@ -557,8 +566,14 @@ pub async fn open_file_location(
                 .spawn();
             
             match result {
-                Ok(_) => Ok(()),
-                Err(e) => Err(format!("Failed to open Windows Explorer: {}", e)),
+                Ok(_) => {
+                    tracing::info!("Successfully opened Windows Explorer");
+                    Ok(())
+                },
+                Err(e) => {
+                    tracing::error!("Failed to open Windows Explorer: {}", e);
+                    Err(format!("Failed to open Windows Explorer: {}", e))
+                },
             }
         }
         
@@ -566,13 +581,17 @@ pub async fn open_file_location(
         {
             use std::process::Command;
             let file_path_str = file_path.to_string_lossy().to_string();
+            tracing::info!("macOS: Opening with 'open -R {}'", file_path_str);
+            
             let result = Command::new("open")
                 .arg("-R")
                 .arg(&file_path_str)
                 .spawn();
             if let Err(e) = result {
+                tracing::error!("Failed to open Finder: {}", e);
                 return Err(format!("Failed to open Finder: {}", e));
             }
+            tracing::info!("Successfully opened Finder");
             Ok(())
         }
         
@@ -582,13 +601,18 @@ pub async fn open_file_location(
             // Try to use file manager to show the file
             // First try xdg-open with the parent folder
             let folder = file_path.parent().ok_or("Invalid path")?;
+            let folder_str = folder.to_string_lossy();
+            tracing::info!("Linux: Opening with 'xdg-open {}'", folder_str);
+            
             let result = Command::new("xdg-open")
                 .arg(folder)
                 .spawn();
             
             if let Err(e) = result {
+                tracing::error!("Failed to open folder: {}", e);
                 return Err(format!("Failed to open folder: {}", e));
             }
+            tracing::info!("Successfully opened file manager");
             Ok(())
         }
         

@@ -112,40 +112,24 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
     return '📄';
   };
 
-  const handleOpenLocation = async () => {
+  const handleOpenLocation = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
     try {
       await downloadApi.openFileLocation(download.id);
       toast.success("Opening file location...");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to open location:", error);
-      
-      // Fallback: Try to open using file path directly if available
-      if (download.savePath) {
-        try {
-          const { open } = await import('@tauri-apps/plugin-shell');
-          const platform = window.navigator.platform.toLowerCase();
-          
-          if (platform.includes('win')) {
-            await open(`explorer /select,"${download.savePath}"`);
-          } else if (platform.includes('mac')) {
-            await open(`open -R "${download.savePath}"`);
-          } else {
-            const folderPath = download.savePath.substring(0, download.savePath.lastIndexOf('/'));
-            await open(`xdg-open "${folderPath}"`);
-          }
-          
-          toast.success("Opening file location...");
-        } catch (fallbackError) {
-          console.error("Fallback failed:", fallbackError);
-          toast.error("Failed to open file location");
-        }
-      } else {
-        toast.error("File path not available");
-      }
+      toast.error(error?.message || "Failed to open file location");
     }
   };
 
-  const handleFileClick = () => {
+  const handleFileClick = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     if (download.status === 'completed') {
       handleOpenLocation();
     }
@@ -512,19 +496,17 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             </button>
           )}
           
-          {/* Open folder - for completed downloads */}
-          {download.status === 'completed' && (
-            <button
-              onClick={handleOpenLocation}
-              className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
-                       rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
-                       border border-transparent hover:border-blue-500/30
-                       hover:scale-110 active:scale-95"
-              title="Open folder"
-            >
-              <FolderOpen className="w-4 h-4" />
-            </button>
-          )}
+          {/* Open folder - Always visible for easy access */}
+          <button
+            onClick={handleOpenLocation}
+            className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+                     rounded-xl transition-all duration-200
+                     border border-transparent hover:border-blue-500/30
+                     hover:scale-110 active:scale-95"
+            title={`Open ${download.savePath ? 'file location' : 'download folder'}`}
+          >
+            <FolderOpen className="w-4 h-4" />
+          </button>
           
           <button
             onClick={() => setShowDetails(true)}
