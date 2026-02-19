@@ -50,9 +50,11 @@ tmp_rovodev_*
 
 # Documentation files (optional - uncomment to ignore)
 # install-code.md
-# PHASE4_COMPLETION_REPORT.md
-# COMPILATION_FIX_SUMMARY.md
 .gitignore_explanation.md
+DOCUMENTATION_SUMMARY.md
+PHASE4_COMPLETION_REPORT.md
+COMPILATION_FIX_SUMMARY.md
+GITIGNORE_UPDATE_SUMMARY.md
 
 # Development scripts
 SIMPLE_START.ps1
