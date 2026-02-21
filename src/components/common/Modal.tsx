@@ -64,7 +64,7 @@ export const Modal: React.FC<ModalProps> = ({
     >
       <div 
         className={cn(
-          "bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl w-full flex flex-col transform transition-all duration-300 max-h-[85vh]",
+          "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl w-full flex flex-col transform transition-all duration-300 max-h-[85vh]",
           sizeClasses[size],
           isAnimating ? "scale-100 opacity-100 translate-y-0" : "scale-95 opacity-0 translate-y-4",
           className
@@ -72,9 +72,9 @@ export const Modal: React.FC<ModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-gray-900/50 flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
             {title ? (
-              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 {title}
               </h2>
             ) : (
@@ -83,7 +83,7 @@ export const Modal: React.FC<ModalProps> = ({
             {showCloseButton && (
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                 aria-label="Close"
               >
                 <X size={20} />

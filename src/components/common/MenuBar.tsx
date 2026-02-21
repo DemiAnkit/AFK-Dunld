@@ -161,6 +161,7 @@ export function MenuBar() {
               icon: <Sun size={14} />,
               checked: theme === 'light',
               action: () => {
+                console.log('Setting theme to light');
                 setTheme('light');
                 setOpenSubmenu(null);
                 setOpenMenu(null);
@@ -171,6 +172,7 @@ export function MenuBar() {
               icon: <Moon size={14} />,
               checked: theme === 'dark',
               action: () => {
+                console.log('Setting theme to dark');
                 setTheme('dark');
                 setOpenSubmenu(null);
                 setOpenMenu(null);
@@ -187,6 +189,7 @@ export function MenuBar() {
               icon: <span className="text-xs w-4">A</span>,
               checked: fontSize === 'small',
               action: () => {
+                console.log('Setting font size to small');
                 setFontSize('small');
                 setOpenSubmenu(null);
                 setOpenMenu(null);
@@ -197,6 +200,7 @@ export function MenuBar() {
               icon: <span className="text-sm w-4">A</span>,
               checked: fontSize === 'medium',
               action: () => {
+                console.log('Setting font size to medium');
                 setFontSize('medium');
                 setOpenSubmenu(null);
                 setOpenMenu(null);
@@ -207,6 +211,7 @@ export function MenuBar() {
               icon: <span className="text-base w-4">A</span>,
               checked: fontSize === 'large',
               action: () => {
+                console.log('Setting font size to large');
                 setFontSize('large');
                 setOpenSubmenu(null);
                 setOpenMenu(null);
@@ -269,12 +274,13 @@ export function MenuBar() {
   };
 
   const handleSubmenuClick = (submenuLabel: string) => {
+    console.log('Submenu clicked:', submenuLabel, 'current:', openSubmenu);
     setOpenSubmenu(openSubmenu === submenuLabel ? null : submenuLabel);
   };
 
   const renderMenuItem = (item: MenuItem, index: number, menuLabel: string) => {
     if (item.divider) {
-      return <div key={index} className="my-1 border-t border-gray-700" />;
+      return <div key={index} className="my-1 border-t border-gray-200 dark:border-gray-700" />;
     }
 
     const hasSubmenu = item.submenu && item.submenu.length > 0;
@@ -282,10 +288,16 @@ export function MenuBar() {
     const isSubmenuOpen = openSubmenu === submenuId;
 
     return (
-      <div key={index} className="relative">
+      <div 
+        key={index} 
+        className="relative"
+        onMouseEnter={() => hasSubmenu && setOpenSubmenu(submenuId)}
+        onMouseLeave={() => hasSubmenu && setOpenSubmenu(null)}
+      >
         <button
-          onClick={() => {
+          onClick={(e) => {
             if (hasSubmenu) {
+              e.stopPropagation();
               handleSubmenuClick(submenuId);
             } else {
               item.action?.();
@@ -295,8 +307,8 @@ export function MenuBar() {
           disabled={item.disabled}
           className={`w-full flex items-center justify-between px-4 py-2.5 text-sm transition-colors ${
             item.disabled
-              ? "text-gray-600 cursor-not-allowed"
-              : "text-gray-300 hover:bg-gray-800 hover:text-white"
+              ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
+              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -310,28 +322,29 @@ export function MenuBar() {
           </div>
           <div className="flex items-center gap-2">
             {item.shortcut && (
-              <kbd className="ml-4 px-2 py-0.5 text-xs bg-gray-800 text-gray-500 rounded border border-gray-700">
+              <kbd className="ml-4 px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded border border-gray-200 dark:border-gray-700">
                 {item.shortcut}
               </kbd>
             )}
-            {hasSubmenu && <span className="text-gray-500">▶</span>}
+            {hasSubmenu && <span className="text-gray-500 dark:text-gray-400 text-xs">&gt;</span>}
           </div>
         </button>
 
         {hasSubmenu && isSubmenuOpen && (
-          <div className="absolute top-0 left-full ml-1 min-w-40 bg-gray-900 border border-gray-700 rounded-xl shadow-xl py-1 z-50 overflow-hidden">
+          <div className="absolute top-0 left-full ml-1 min-w-40 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1 z-[100]">
             {item.submenu!.map((subItem, subIndex) => (
               <button
                 key={subIndex}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   subItem.action?.();
                   setOpenSubmenu(null);
                   setOpenMenu(null);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
                   subItem.disabled
-                    ? "text-gray-600 cursor-not-allowed"
-                    : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                    ? "text-gray-400 dark:text-gray-600 cursor-not-allowed"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
                 {subItem.checked !== undefined && (
@@ -357,8 +370,8 @@ export function MenuBar() {
             onClick={() => handleMenuClick(menu.label)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 ${
               openMenu === menu.label
-                ? "bg-gray-700 text-white"
-                : "text-gray-300 hover:bg-gray-800 hover:text-white"
+                ? "bg-blue-600 text-white"
+                : "text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white"
             }`}
           >
             {menu.icon}
@@ -366,7 +379,7 @@ export function MenuBar() {
           </button>
 
           {openMenu === menu.label && (
-            <div className="absolute top-full left-0 mt-1 min-w-48 bg-gray-900 border border-gray-700 rounded-xl shadow-xl py-1 z-50 overflow-hidden">
+            <div className="absolute top-full left-0 mt-1 min-w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl py-1 z-50 overflow-visible">
               {menu.items.map((item, index) => renderMenuItem(item, index, menu.label))}
             </div>
           )}

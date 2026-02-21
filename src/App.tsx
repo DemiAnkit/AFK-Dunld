@@ -93,24 +93,24 @@ function AppContent() {
       
       {/* yt-dlp Warning - Should rarely appear with bundled version */}
       {showYtdlpWarning && isInstalled === false && (
-        <div className="bg-yellow-900/30 border-b border-yellow-700/50 px-4 py-3">
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-200 dark:border-yellow-700/50 px-4 py-3">
           <div className="flex items-center justify-between max-w-7xl mx-auto">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-400" />
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
               <div>
-                <p className="text-sm font-medium text-yellow-200">
+                <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
                   YouTube downloader is not available
                 </p>
-                <p className="text-xs text-yellow-300/80 mt-0.5">
+                <p className="text-xs text-yellow-700 dark:text-yellow-300/80 mt-0.5">
                   Please restart the application. If the issue persists, try reinstalling.
                 </p>
               </div>
             </div>
             <button
               onClick={() => setShowYtdlpWarning(false)}
-              className="p-1 hover:bg-yellow-800/30 rounded transition-colors"
+              className="p-1 hover:bg-yellow-200 dark:hover:bg-yellow-800/30 rounded transition-colors"
             >
-              <X className="w-4 h-4 text-yellow-300" />
+              <X className="w-4 h-4 text-yellow-600 dark:text-yellow-300" />
             </button>
           </div>
         </div>

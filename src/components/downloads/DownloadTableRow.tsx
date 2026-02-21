@@ -278,10 +278,10 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
       {showDetails && <FileDetailsDialog download={download} onClose={() => setShowDetails(false)} />}
       <div 
         onClick={handleRowClick}
-        className={`grid gap-4 px-4 py-3 border-b border-gray-800/50 
-                   hover:bg-gray-800/40 transition-all duration-200 group cursor-pointer
-                   ${isRowSelected ? 'bg-blue-900/20 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}
-                   ${download.status === 'downloading' ? 'bg-blue-900/5' : ''}`}
+        className={`grid gap-4 px-4 py-3 border-b border-gray-200 dark:border-gray-800 
+                   hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 group cursor-pointer
+                   ${isRowSelected ? 'bg-blue-100 dark:bg-blue-900/40 border-l-4 border-l-blue-500' : 'border-l-4 border-l-transparent'}
+                   ${download.status === 'downloading' ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
         style={{ gridTemplateColumns: 'auto 1fr 120px 100px 100px 180px 140px' }}
       >
         {/* Checkbox */}
@@ -291,7 +291,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             checked={isRowSelected}
             onChange={handleCheckboxChange}
             onClick={(e) => e.stopPropagation()}
-            className="w-3.5 h-3.5 bg-gray-800 border-gray-600 rounded text-blue-600 
+            className="w-3.5 h-3.5 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded text-blue-600 dark:text-blue-500 
                      focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer"
           />
         </div>
@@ -307,7 +307,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           </button>
           <div className="min-w-0 flex-1">
             <p 
-              className="text-sm text-white truncate font-medium cursor-pointer hover:text-blue-400 transition-colors"
+              className="text-sm text-gray-900 dark:text-white truncate font-medium cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               onClick={handleFileClick}
               title={`${download.fileName || 'Unknown'}\nSize: ${
                 download.status === 'completed' && actualFileSize !== null
@@ -320,7 +320,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
               {download.fileName || download.url?.split('/').pop() || 'Downloading...'}
             </p>
             {download.fileName && (
-              <p className="text-xs text-gray-500 truncate">
+              <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
                 {(() => {
                   const ext = download.fileName.split('.').pop()?.toLowerCase();
                   return ext ? `.${ext.toUpperCase()} file` : 'Unknown type';
@@ -331,13 +331,13 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             {/* Progress bar for downloading files */}
             {download.status === 'downloading' && (
               <div className="flex items-center gap-2 mt-1.5">
-                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(progress, 100)}%` }}
                   />
                 </div>
-                <span className="text-xs text-gray-500 font-medium min-w-[40px] text-right">
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium min-w-[40px] text-right">
                   {progress.toFixed(1)}%
                 </span>
               </div>
@@ -346,21 +346,21 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             {/* Progress bar with pause indicator for paused files */}
             {download.status === 'paused' && (
               <div className="flex items-center gap-2 mt-1.5">
-                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden relative">
+                <div className="flex-1 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative">
                   <div
                     className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(progress, 100)}%` }}
                   />
                   {/* Pause marker - shows where download was paused */}
                   <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-orange-300 shadow-lg shadow-orange-500/50"
+                    className="absolute top-0 bottom-0 w-0.5 bg-orange-300 dark:bg-orange-400 shadow-lg shadow-orange-500/50"
                     style={{ left: `${Math.min(progress, 100)}%` }}
                     title={`Paused at ${progress.toFixed(1)}%`}
                   >
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-orange-400 rounded-full border-2 border-gray-950 shadow-lg shadow-orange-500/50" />
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-orange-400 rounded-full border-2 border-white dark:border-gray-950 shadow-lg shadow-orange-500/50" />
                   </div>
                 </div>
-                <span className="text-xs text-orange-400 font-medium min-w-[40px] text-right" title={`Paused at ${progress.toFixed(1)}%`}>
+                <span className="text-xs text-orange-600 dark:text-orange-400 font-medium min-w-[40px] text-right" title={`Paused at ${progress.toFixed(1)}%`}>
                   {progress.toFixed(1)}%
                 </span>
               </div>
@@ -368,7 +368,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             
             {/* Warning for missing files */}
             {download.status === 'completed' && fileExists === false && (
-              <div className="flex items-center gap-1.5 mt-1 text-xs text-orange-400">
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-orange-600 dark:text-orange-400">
                 <FileWarning className="w-3.5 h-3.5" />
                 <span>File not found on disk</span>
               </div>
@@ -380,10 +380,10 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
             <button
               onClick={handleOpenLocation}
               className="opacity-0 group-hover:opacity-100 transition-all duration-200 
-                       p-1.5 hover:bg-gray-700 rounded-lg"
+                       p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg"
               title="Open folder"
             >
-              <FolderOpen className="w-4 h-4 text-blue-400" />
+              <FolderOpen className="w-4 h-4 text-blue-500 dark:text-blue-400" />
             </button>
           )}
         </div>
@@ -400,7 +400,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
         {/* Size - Shows exact file size */}
         <div className="flex items-center">
           <span 
-            className="text-sm text-gray-300 font-medium tabular-nums"
+            className="text-sm text-gray-700 dark:text-gray-300 font-medium tabular-nums"
             title={
               download.status === 'completed' && actualFileSize !== null
                 ? `${actualFileSize.toLocaleString()} bytes (actual file size)`
@@ -423,7 +423,7 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
 
         {/* Speed */}
         <div className="flex items-center">
-          <span className="text-sm text-blue-400 font-medium tabular-nums">
+          <span className="text-sm text-blue-600 dark:text-blue-400 font-medium tabular-nums">
             {download.status === 'downloading' && download.speed && download.speed > 0 
               ? formatSpeed(download.speed) 
               : '-'}
@@ -434,19 +434,19 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
         <div className="flex flex-col justify-center">
           {download.status === 'completed' && download.completedAt ? (
             <>
-              <span className="text-xs text-gray-300 font-medium">
+              <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">
                 {formatDateTime(download.completedAt).date}
               </span>
-              <span className="text-xs text-green-400 tabular-nums">
+              <span className="text-xs text-green-600 dark:text-green-400 tabular-nums">
                 Completed: {formatDateTime(download.completedAt).time}
               </span>
             </>
           ) : (
             <>
-              <span className="text-xs text-gray-300 font-medium">
+              <span className="text-xs text-gray-700 dark:text-gray-300 font-medium">
                 {dateTime.date}
               </span>
-              <span className="text-xs text-gray-500 tabular-nums">
+              <span className="text-xs text-gray-500 dark:text-gray-500 tabular-nums">
                 {dateTime.time}
               </span>
             </>
@@ -459,9 +459,9 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           {download.status === 'downloading' && (
             <button
               onClick={handlePause}
-              className="p-2 hover:bg-orange-500/20 hover:text-orange-400 text-gray-400 
+              className="p-2 hover:bg-orange-100 dark:hover:bg-orange-500/20 hover:text-orange-600 dark:hover:text-orange-400 text-gray-500 dark:text-gray-400 
                        rounded-xl transition-all duration-200
-                       border border-transparent hover:border-orange-500/30
+                       border border-transparent hover:border-orange-200 dark:hover:border-orange-500/30
                        hover:scale-110 active:scale-95"
               title="Pause download"
             >
@@ -473,9 +473,9 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           {download.status === 'paused' && (
             <button
               onClick={handleResume}
-              className="p-2 hover:bg-green-500/20 hover:text-green-400 text-gray-400 
+              className="p-2 hover:bg-green-100 dark:hover:bg-green-500/20 hover:text-green-600 dark:hover:text-green-400 text-gray-500 dark:text-gray-400 
                        rounded-xl transition-all duration-200
-                       border border-transparent hover:border-green-500/30
+                       border border-transparent hover:border-green-200 dark:hover:border-green-500/30
                        hover:scale-110 active:scale-95"
               title="Resume download"
             >
@@ -487,9 +487,9 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           {(download.status === 'failed' || download.status === 'cancelled') && (
             <button
               onClick={handleRetry}
-              className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+              className="p-2 hover:bg-blue-100 dark:hover:bg-blue-500/20 hover:text-blue-600 dark:hover:text-blue-400 text-gray-500 dark:text-gray-400 
                        rounded-xl transition-all duration-200
-                       border border-transparent hover:border-blue-500/30
+                       border border-transparent hover:border-blue-200 dark:hover:border-blue-500/30
                        hover:scale-110 active:scale-95"
               title="Retry download"
             >
@@ -501,9 +501,9 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           {download.status === 'paused' && (
             <button
               onClick={handleResume}
-              className="p-2 hover:bg-green-500/20 hover:text-green-400 text-gray-400 
+              className="p-2 hover:bg-green-100 dark:hover:bg-green-500/20 hover:text-green-600 dark:hover:text-green-400 text-gray-500 dark:text-gray-400 
                        rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
-                       border border-transparent hover:border-green-500/30
+                       border border-transparent hover:border-green-200 dark:hover:border-green-500/30
                        hover:scale-110 active:scale-95"
               title="Resume download"
             >
@@ -515,9 +515,9 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           {(download.status === 'failed' || download.status === 'cancelled') && (
             <button
               onClick={handleRetry}
-              className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+              className="p-2 hover:bg-blue-100 dark:hover:bg-blue-500/20 hover:text-blue-600 dark:hover:text-blue-400 text-gray-500 dark:text-gray-400 
                        rounded-xl transition-all duration-200 opacity-0 group-hover:opacity-100
-                       border border-transparent hover:border-blue-500/30
+                       border border-transparent hover:border-blue-200 dark:hover:border-blue-500/30
                        hover:scale-110 active:scale-95"
               title="Retry download"
             >
@@ -528,31 +528,33 @@ export function DownloadTableRow({ download }: DownloadTableRowProps) {
           {/* Open folder - Always visible for easy access */}
           <button
             onClick={handleOpenLocation}
-            className="p-2 hover:bg-blue-500/20 hover:text-blue-400 text-gray-400 
+            className="p-2 hover:bg-blue-100 dark:hover:bg-blue-500/20 hover:text-blue-600 dark:hover:text-blue-400 text-gray-500 dark:text-gray-400 
                      rounded-xl transition-all duration-200
-                     border border-transparent hover:border-blue-500/30
+                     border border-transparent hover:border-blue-200 dark:hover:border-blue-500/30
                      hover:scale-110 active:scale-95"
-            title={`Open ${download.savePath ? 'file location' : 'download folder'}`}
+            title="Open folder"
           >
             <FolderOpen className="w-4 h-4" />
           </button>
           
+          {/* Info button */}
           <button
             onClick={() => setShowDetails(true)}
-            className="p-2 hover:bg-gray-700/80 hover:text-white text-gray-400 
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-700 dark:hover:text-gray-300 text-gray-500 dark:text-gray-400 
                      rounded-xl transition-all duration-200
-                     border border-transparent hover:border-gray-500/30
+                     border border-transparent hover:border-gray-300 dark:hover:border-gray-600
                      hover:scale-110 active:scale-95"
             title="View details"
           >
             <Info className="w-4 h-4" />
           </button>
           
+          {/* Delete button */}
           <button
             onClick={handleDelete}
-            className="p-2 hover:bg-red-500/20 hover:text-red-400 text-gray-400 
+            className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 hover:text-red-600 dark:hover:text-red-400 text-gray-500 dark:text-gray-400 
                      rounded-xl transition-all duration-200
-                     border border-transparent hover:border-red-500/30
+                     border border-transparent hover:border-red-200 dark:hover:border-red-500/30
                      hover:scale-110 active:scale-95"
             title="Remove from list"
           >

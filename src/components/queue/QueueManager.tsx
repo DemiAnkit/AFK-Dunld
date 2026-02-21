@@ -128,30 +128,30 @@ export const QueueManager = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 p-6">
+    <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-950 p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">Download Queue</h2>
-        <p className="text-gray-400">Manage concurrent downloads and priorities</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Download Queue</h2>
+        <p className="text-gray-500 dark:text-gray-400">Manage concurrent downloads and priorities</p>
       </div>
 
       {/* Queue Stats */}
       {queueInfo && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-            <div className="text-sm text-gray-400 mb-1">Active</div>
-            <div className="text-2xl font-bold text-blue-400">{queueInfo.active_count}</div>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active</div>
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{queueInfo.active_count}</div>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-            <div className="text-sm text-gray-400 mb-1">Queued</div>
-            <div className="text-2xl font-bold text-purple-400">{queueInfo.queued_count}</div>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Queued</div>
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{queueInfo.queued_count}</div>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-            <div className="text-sm text-gray-400 mb-1">Max Concurrent</div>
-            <div className="text-2xl font-bold text-green-400">{queueInfo.max_concurrent}</div>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Max Concurrent</div>
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{queueInfo.max_concurrent}</div>
           </div>
-          <div className="bg-gray-900 rounded-lg p-4 border border-gray-800">
-            <div className="text-sm text-gray-400 mb-1">Total Speed</div>
-            <div className="text-2xl font-bold text-orange-400">{formatSpeed(queueInfo.total_speed)}</div>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800">
+            <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Speed</div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatSpeed(queueInfo.total_speed)}</div>
           </div>
         </div>
       )}
@@ -159,14 +159,14 @@ export const QueueManager = () => {
       {/* Controls */}
       <div className="flex items-center gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-400">Max Concurrent:</label>
+          <label className="text-sm text-gray-600 dark:text-gray-400">Max Concurrent:</label>
           <input
             type="number"
             min="1"
             max="20"
             value={maxConcurrent}
             onChange={(e) => setMaxConcurrent(parseInt(e.target.value) || 1)}
-            className="w-20 px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-20 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={handleUpdateMaxConcurrent}
@@ -178,7 +178,7 @@ export const QueueManager = () => {
 
         <button
           onClick={handlePauseAll}
-          className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg transition-colors flex items-center gap-2"
         >
           <Pause className="w-4 h-4" />
           Pause All
@@ -197,10 +197,10 @@ export const QueueManager = () => {
       <div className="flex-1 overflow-auto">
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="text-gray-400">Loading queue...</div>
+            <div className="text-gray-500 dark:text-gray-400">Loading queue...</div>
           </div>
         ) : queuedDownloads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+          <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
             <List className="w-16 h-16 mb-4 opacity-50" />
             <p className="text-lg">Queue is empty</p>
             <p className="text-sm">Add downloads to see them here</p>
@@ -208,7 +208,7 @@ export const QueueManager = () => {
         ) : (
           <div className="space-y-2">
             {/* Table Header */}
-            <div className="grid grid-cols-[auto_1fr_120px_100px_100px] gap-4 px-4 py-2 bg-gray-900/50 rounded-t-lg text-xs font-semibold text-gray-400 uppercase">
+            <div className="grid grid-cols-[auto_1fr_120px_100px_100px] gap-4 px-4 py-2 bg-gray-200 dark:bg-gray-900/50 rounded-t-lg text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase">
               <div className="flex items-center justify-center">Priority</div>
               <div>File Name</div>
               <div>Status</div>
@@ -220,7 +220,7 @@ export const QueueManager = () => {
             {queuedDownloads.map((download, index) => (
               <div
                 key={download.id}
-                className="grid grid-cols-[auto_1fr_120px_100px_100px] gap-4 px-4 py-3 bg-gray-900 border border-gray-800 hover:border-gray-700 transition-colors rounded-lg"
+                className="grid grid-cols-[auto_1fr_120px_100px_100px] gap-4 px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors rounded-lg"
               >
                 {/* Priority Controls */}
                 <div className="flex flex-col gap-1 items-center justify-center">

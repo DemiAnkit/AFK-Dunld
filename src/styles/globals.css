@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant light (&:where(.light, .light *));
+
 @theme {
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
@@ -87,6 +90,11 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Ensure light theme has white background */
+  .light {
+    background-color: #ffffff;
   }
 }
 
@@ -308,7 +316,7 @@ body {
 
 /* Font Size Settings */
 [data-font-size="small"] {
-  font-size: 13px;
+  font-size: 11px;
 }
 
 [data-font-size="medium"] {
@@ -316,7 +324,19 @@ body {
 }
 
 [data-font-size="large"] {
-  font-size: 16px;
+  font-size: 18px;
+}
+
+[data-font-size="small"] body {
+  font-size: 11px;
+}
+
+[data-font-size="medium"] body {
+  font-size: 14px;
+}
+
+[data-font-size="large"] body {
+  font-size: 18px;
 }
 
 /* Toolbar Size Settings */

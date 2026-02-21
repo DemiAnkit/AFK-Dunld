@@ -64,11 +64,11 @@ export const ScheduleManager = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950 p-6">
+    <div className="flex flex-col h-full bg-gray-100 dark:bg-gray-950 p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white">Scheduled Downloads</h2>
-          <p className="text-gray-400 mt-1">Manage timed and recurring downloads</p>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Scheduled Downloads</h2>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Manage timed and recurring downloads</p>
         </div>
         <button
           onClick={() => setShowAddDialog(true)}
@@ -81,10 +81,10 @@ export const ScheduleManager = () => {
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-400">Loading schedules...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading schedules...</div>
         </div>
       ) : schedules.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+        <div className="flex flex-col items-center justify-center h-64 text-gray-500 dark:text-gray-400">
           <Calendar className="w-16 h-16 mb-4 opacity-50" />
           <p className="text-lg">No scheduled downloads</p>
           <p className="text-sm">Create a schedule to download files at specific times</p>
@@ -94,15 +94,15 @@ export const ScheduleManager = () => {
           {schedules.map((schedule) => (
             <div
               key={schedule.id}
-              className="bg-gray-900 rounded-lg p-4 border border-gray-800 hover:border-gray-700 transition-colors"
+              className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <h3 className="font-medium text-white mb-1">{schedule.file_name}</h3>
-                  <p className="text-sm text-gray-400 mb-3 truncate">{schedule.url}</p>
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-1">{schedule.file_name}</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 truncate">{schedule.url}</p>
                   
                   <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-400">
+                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
                       <Clock className="w-4 h-4" />
                       {format(new Date(schedule.scheduled_time), 'MMM dd, yyyy HH:mm')}
                     </div>

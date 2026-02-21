@@ -6,6 +6,17 @@ import "./styles/globals.css";
 
 console.log("🚀 AFK-Dunld starting...");
 
+// Apply theme before React mounts to prevent flash
+const savedTheme = localStorage.getItem('theme') || 'dark';
+const root = document.documentElement;
+if (savedTheme === 'dark') {
+  root.classList.add('dark');
+  root.classList.remove('light');
+} else {
+  root.classList.remove('dark');
+  root.classList.add('light');
+}
+
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
   console.log("✅ DOM ready");

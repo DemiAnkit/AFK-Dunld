@@ -3,7 +3,7 @@ import { Outlet } from "react-router-dom";
 
 export function MainContent() {
   return (
-    <main className="flex-1 overflow-auto bg-gray-950">
+    <main className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-950">
       <Outlet />
     </main>
   );

@@ -158,21 +158,21 @@ export function DownloadTable({ filter }: DownloadTableProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-950">
+    <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950">
       {/* Bulk Actions Bar - Shows when items are selected */}
       {selectionSize > 0 && (
-        <div className="bg-blue-900/20 border-b border-blue-500/30 px-4 py-3 flex items-center justify-between backdrop-blur-sm">
+        <div className="bg-blue-100 dark:bg-blue-900/50 border-b border-blue-200 dark:border-blue-700 px-4 py-3 flex items-center justify-between backdrop-blur-sm">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-blue-300">
+            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
               {selectionSize} selected
             </span>
             <div className="flex items-center gap-2">
               {canPauseSelected && (
                 <button
                   onClick={handlePauseSelected}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/30 
-                           text-orange-300 rounded-lg transition-all duration-200 text-xs font-medium
-                           border border-orange-500/30 hover:border-orange-500/50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30 
+                           text-orange-700 dark:text-orange-300 rounded-lg transition-all duration-200 text-xs font-medium
+                           border border-orange-200 dark:border-orange-500/30 hover:border-orange-300 dark:hover:border-orange-500/50"
                   title="Pause selected downloads (P)"
                 >
                   <Pause className="w-3.5 h-3.5" />
@@ -182,9 +182,9 @@ export function DownloadTable({ filter }: DownloadTableProps) {
               {canResumeSelected && (
                 <button
                   onClick={handleResumeSelected}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 hover:bg-green-500/30 
-                           text-green-300 rounded-lg transition-all duration-200 text-xs font-medium
-                           border border-green-500/30 hover:border-green-500/50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-100 dark:bg-green-500/20 hover:bg-green-200 dark:hover:bg-green-500/30 
+                           text-green-700 dark:text-green-300 rounded-lg transition-all duration-200 text-xs font-medium
+                           border border-green-200 dark:border-green-500/30 hover:border-green-300 dark:hover:border-green-500/50"
                   title="Resume selected downloads (R)"
                 >
                   <Play className="w-3.5 h-3.5" />
@@ -193,9 +193,9 @@ export function DownloadTable({ filter }: DownloadTableProps) {
               )}
               <button
                 onClick={handleRemoveSelected}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 
-                         text-red-300 rounded-lg transition-all duration-200 text-xs font-medium
-                         border border-red-500/30 hover:border-red-500/50"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 
+                         text-red-700 dark:text-red-300 rounded-lg transition-all duration-200 text-xs font-medium
+                         border border-red-200 dark:border-red-500/30 hover:border-red-300 dark:hover:border-red-500/50"
                 title="Remove selected downloads (Delete)"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -205,16 +205,16 @@ export function DownloadTable({ filter }: DownloadTableProps) {
           </div>
           <button
             onClick={clearSelection}
-            className="p-1.5 hover:bg-gray-700/50 rounded-lg transition-colors"
+            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
             title="Clear selection (Esc)"
           >
-            <X className="w-4 h-4 text-gray-400" />
+            <X className="w-4 h-4 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
       )}
       
       {/* Table Header */}
-      <div className="grid gap-4 px-4 py-3 bg-gray-900/80 border-b border-gray-800 text-xs font-semibold text-gray-400 uppercase tracking-wider backdrop-blur-sm sticky top-0 z-10"
+      <div className="grid gap-4 px-4 py-3 bg-gray-100 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider backdrop-blur-sm sticky top-0 z-10"
            style={{ gridTemplateColumns: 'auto 1fr 120px 100px 100px 180px 140px' }}>
         <div className="flex items-center justify-center">
           <input 
@@ -224,13 +224,13 @@ export function DownloadTable({ filter }: DownloadTableProps) {
               if (el) el.indeterminate = isSomeSelected;
             }}
             onChange={handleSelectAll}
-            className="w-3.5 h-3.5 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer" 
+            className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-500 focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer" 
             title={isAllSelected ? "Deselect All" : "Select All"} 
           />
         </div>
         <button 
           onClick={() => handleSort("fileName")}
-          className="flex items-center gap-2 hover:text-white transition-colors text-left"
+          className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
         >
           File Name
           {getSortIcon("fileName")}
@@ -240,7 +240,7 @@ export function DownloadTable({ filter }: DownloadTableProps) {
         <div className="flex items-center">Speed</div>
         <button 
           onClick={() => handleSort("createdAt")}
-          className="flex items-center gap-2 hover:text-white transition-colors text-left"
+          className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
         >
           Date/Time
           {getSortIcon("createdAt")}
@@ -251,21 +251,21 @@ export function DownloadTable({ filter }: DownloadTableProps) {
       {/* Table Body */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {filteredDownloads.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
             <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-800/50 flex items-center justify-center">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-gray-800/50 flex items-center justify-center">
                 <Download className="w-10 h-10 opacity-30" />
               </div>
-              <p className="text-lg font-medium text-gray-400">
+              <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
                 {searchQuery ? 'No downloads match your search' : 'No downloads found'}
               </p>
-              <p className="text-sm mt-2 text-gray-600">
+              <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
                 {searchQuery ? 'Try a different search term' : 'Click "Add Download" to get started'}
               </p>
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-800/30">
+          <div className="divide-y divide-gray-200 dark:divide-gray-800/30">
             {filteredDownloads.map((download) => (
               <DownloadTableRow key={download.id} download={download} />
             ))}
@@ -275,7 +275,7 @@ export function DownloadTable({ filter }: DownloadTableProps) {
       
       {/* Results count footer */}
       {filteredDownloads.length > 0 && (
-        <div className="px-4 py-2 bg-gray-900/50 border-t border-gray-800 text-xs text-gray-500">
+        <div className="px-4 py-2 bg-gray-100 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-500">
           Showing {filteredDownloads.length} of {downloads.length} downloads
           {searchQuery && ` (filtered by "${searchQuery}")`}
         </div>

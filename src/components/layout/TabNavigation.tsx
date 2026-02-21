@@ -43,8 +43,8 @@ export function TabNavigation() {
             className={({ isActive }) =>
               `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${
                 isActive
-                  ? "text-blue-400 border-blue-400"
-                  : "text-gray-400 border-transparent hover:text-white hover:border-gray-700"
+                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400"
+                  : "text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-700"
               }`
             }
           >
@@ -61,8 +61,8 @@ export function TabNavigation() {
             className={({ isActive }) =>
               `flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors flex-shrink-0 ${
                 isActive
-                  ? "text-blue-400 border-blue-400"
-                  : "text-gray-400 border-transparent hover:text-white hover:border-gray-700"
+                  ? "text-blue-600 dark:text-blue-400 border-blue-600 dark:border-blue-400"
+                  : "text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-700"
               }`
             }
           >
@@ -73,7 +73,7 @@ export function TabNavigation() {
         
         <button 
           onClick={handleAddCategory}
-          className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-white hover:border-gray-700 ml-auto transition-colors flex-shrink-0"
+          className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-700 ml-auto transition-colors flex-shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Add Category</span>
