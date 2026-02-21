@@ -11,7 +11,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { downloadApi } from "../../services/tauriApi";
 
 export function Header() {
-  const { setAddDialogOpen, searchQuery, setSearchQuery, viewMode, setViewMode } = useUIStore();
+  const { setAddDialogOpen, searchQuery, setSearchQuery, viewMode, setViewMode, toolbarSize } = useUIStore();
   const { downloads, pauseAll, resumeAll } = useDownloadStore();
   const { settings } = useSettingsStore();
   const [scrolled, setScrolled] = useState(false);
@@ -143,90 +143,90 @@ export function Header() {
           </div>
 
           {/* Right Section - Actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className={`flex items-center gap-2 flex-shrink-0 ${toolbarSize === 'small' ? 'gap-1' : 'gap-2'}`}>
             {/* View Mode Toggle */}
-            <div className="flex items-center bg-gray-800/50 rounded-xl p-1 mr-2 border border-gray-700/50">
+            <div className={`flex items-center bg-gray-800/50 rounded-xl border border-gray-700/50 ${toolbarSize === 'small' ? 'p-0.5' : 'p-1'} ${toolbarSize === 'small' ? 'mr-1' : 'mr-2'}`}>
               <button
                 onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`${toolbarSize === 'small' ? 'p-1' : 'p-2'} rounded-lg transition-all duration-200 ${
                   viewMode === 'list' 
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                 }`}
                 title="List View"
               >
-                <List className="w-4 h-4" />
+                <List className={`${toolbarSize === 'small' ? 'w-3 h-3' : 'w-4 h-4'}`} />
               </button>
               <button
                 onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-all duration-200 ${
+                className={`${toolbarSize === 'small' ? 'p-1' : 'p-2'} rounded-lg transition-all duration-200 ${
                   viewMode === 'grid' 
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
                     : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
                 }`}
                 title="Grid View"
               >
-                <LayoutGrid className="w-4 h-4" />
+                <LayoutGrid className={`${toolbarSize === 'small' ? 'w-3 h-3' : 'w-4 h-4'}`} />
               </button>
             </div>
 
-            <div className="h-8 w-px bg-gray-700/50 mx-1" />
+            <div className={`${toolbarSize === 'small' ? 'h-6' : 'h-8'} w-px bg-gray-700/50 ${toolbarSize === 'small' ? 'mx-0.5' : 'mx-1'}`} />
 
             {/* Primary Action Button */}
             <button
               onClick={() => setAddDialogOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 
+              className={`flex items-center gap-2 ${toolbarSize === 'small' ? 'px-3 py-1.5 text-sm' : 'px-5 py-2.5'} bg-gradient-to-r from-blue-600 to-blue-700 
                        hover:from-blue-500 hover:to-blue-600 text-white rounded-xl 
                        transition-all duration-200 font-semibold 
                        shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:shadow-xl
                        hover:scale-105 active:scale-95 border border-blue-500/30
-                       group relative overflow-hidden"
+                       group relative overflow-hidden`}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              <Plus className="w-5 h-5 relative z-10 group-hover:rotate-90 transition-transform duration-300" />
+              <Plus className={`relative z-10 group-hover:rotate-90 transition-transform duration-300 ${toolbarSize === 'small' ? 'w-4 h-4' : 'w-5 h-5'}`} />
               <span className="relative z-10">Add Download</span>
             </button>
 
-            <div className="h-8 w-px bg-gray-700/50 mx-1" />
+            <div className={`${toolbarSize === 'small' ? 'h-6' : 'h-8'} w-px bg-gray-700/50 ${toolbarSize === 'small' ? 'mx-0.5' : 'mx-1'}`} />
 
             {/* Secondary Actions */}
             <button
               onClick={handleOpenDownloadFolder}
-              className="p-2.5 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 
+              className={`${toolbarSize === 'small' ? 'p-1.5' : 'p-2.5'} text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 
                        rounded-xl transition-all duration-200 group border border-transparent
-                       hover:border-blue-500/30"
+                       hover:border-blue-500/30`}
               title="Open Download Folder"
             >
-              <FolderOpen className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <FolderOpen className={`${toolbarSize === 'small' ? 'w-4 h-4' : 'w-5 h-5'} group-hover:scale-110 transition-transform`} />
             </button>
 
             <button
               onClick={handlePauseAll}
               disabled={activeDownloads.length === 0}
-              className="p-2.5 text-gray-400 hover:text-orange-400 hover:bg-orange-500/10 
+              className={`${toolbarSize === 'small' ? 'p-1.5' : 'p-2.5'} text-gray-400 hover:text-orange-400 hover:bg-orange-500/10 
                        rounded-xl transition-all duration-200 disabled:opacity-40 
                        disabled:cursor-not-allowed group border border-transparent
-                       hover:border-orange-500/30"
+                       hover:border-orange-500/30`}
               title="Pause All Downloads"
             >
-              <Pause className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <Pause className={`${toolbarSize === 'small' ? 'w-4 h-4' : 'w-5 h-5'} group-hover:scale-110 transition-transform`} />
             </button>
 
             <button
               onClick={handleResumeAll}
               disabled={pausedDownloads.length === 0}
-              className="p-2.5 text-gray-400 hover:text-green-400 hover:bg-green-500/10 
+              className={`${toolbarSize === 'small' ? 'p-1.5' : 'p-2.5'} text-gray-400 hover:text-green-400 hover:bg-green-500/10 
                        rounded-xl transition-all duration-200 disabled:opacity-40 
                        disabled:cursor-not-allowed group border border-transparent
-                       hover:border-green-500/30"
+                       hover:border-green-500/30`}
               title="Resume All Downloads"
             >
-              <Play className="w-5 h-5 group-hover:scale-110 transition-transform group-hover:translate-x-0.5" />
+              <Play className={`${toolbarSize === 'small' ? 'w-4 h-4' : 'w-5 h-5'} group-hover:scale-110 transition-transform group-hover:translate-x-0.5`} />
             </button>
 
             <button
               onClick={() => navigate('/settings')}
-              className={`p-2 rounded-lg transition-colors ${
+              className={`${toolbarSize === 'small' ? 'p-1.5' : 'p-2'} rounded-lg transition-colors ${
                 location.pathname === '/settings'
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
@@ -234,7 +234,7 @@ export function Header() {
               title="Settings"
               aria-label="Open Settings"
             >
-              <Settings className="w-5 h-5" />
+              <Settings className={`${toolbarSize === 'small' ? 'w-4 h-4' : 'w-5 h-5'}`} />
             </button>
             
             <KeyboardShortcutsHelp />

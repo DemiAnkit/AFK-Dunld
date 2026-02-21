@@ -12,6 +12,8 @@ interface UIState {
   viewMode: 'list' | 'grid';
   selectedDownloads: Set<string>;
   lastSelectedId: string | null;
+  fontSize: 'small' | 'medium' | 'large';
+  toolbarSize: 'small' | 'large';
   
   setAddDialogOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
@@ -22,6 +24,8 @@ interface UIState {
   removeCategory: (category: string) => void;
   setSearchQuery: (query: string) => void;
   setViewMode: (mode: 'list' | 'grid') => void;
+  setFontSize: (size: 'small' | 'medium' | 'large') => void;
+  setToolbarSize: (size: 'small' | 'large') => void;
   toggleSelection: (id: string, isShiftKey?: boolean, isCtrlKey?: boolean, allIds?: string[]) => void;
   selectAll: (ids: string[]) => void;
   clearSelection: () => void;
@@ -48,6 +52,8 @@ export const useUIStore = create<UIState>()(
       viewMode: 'list',
       selectedDownloads: new Set<string>(),
       lastSelectedId: null,
+      fontSize: 'medium',
+      toolbarSize: 'large',
 
       setAddDialogOpen: (open: boolean) => set({ isAddDialogOpen: open }),
       setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),
@@ -64,6 +70,8 @@ export const useUIStore = create<UIState>()(
         })),
       setSearchQuery: (query: string) => set({ searchQuery: query }),
       setViewMode: (mode: 'list' | 'grid') => set({ viewMode: mode }),
+      setFontSize: (size: 'small' | 'medium' | 'large') => set({ fontSize: size }),
+      setToolbarSize: (size: 'small' | 'large') => set({ toolbarSize: size }),
       
       toggleSelection: (id: string, isShiftKey = false, isCtrlKey = false, allIds = []) => {
         const { selectedDownloads, lastSelectedId } = get();

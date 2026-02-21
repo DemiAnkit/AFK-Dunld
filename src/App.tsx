@@ -28,13 +28,20 @@ const queryClient = new QueryClient();
 function AppContent() {
   const { fetchDownloads } = useDownloadStore();
   const { loadSettings } = useSettingsStore();
-  const { isAddDialogOpen, setAddDialogOpen, isAddCategoryDialogOpen, setAddCategoryDialogOpen, addCategory } = useUIStore();
+  const { isAddDialogOpen, setAddDialogOpen, isAddCategoryDialogOpen, setAddCategoryDialogOpen, addCategory, fontSize, toolbarSize } = useUIStore();
   const { checkInstallation, isInstalled } = useYouTubeDownload();
   const [showYtdlpWarning, setShowYtdlpWarning] = useState(false);
   
   useDownloadEvents();
   useTheme();
   useKeyboardShortcuts();
+
+  // Apply font size and toolbar size settings
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-font-size', fontSize);
+    root.setAttribute('data-toolbar-size', toolbarSize);
+  }, [fontSize, toolbarSize]);
 
   // Enable auto-recovery for stalled downloads
   useEffect(() => {
