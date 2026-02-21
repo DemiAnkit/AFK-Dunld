@@ -4,6 +4,7 @@ import { useUIStore } from "../../stores/uiStore";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { KeyboardShortcutsHelp } from "../common/KeyboardShortcutsHelp";
+import { MenuBar } from "../common/MenuBar";
 import toast from "react-hot-toast";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -73,6 +74,11 @@ export function Header() {
         ? 'bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800/80 shadow-lg' 
         : 'bg-gradient-to-r from-gray-900 via-gray-900 to-gray-800 border-b border-gray-800'
     }`}>
+      {/* Menu Bar */}
+      <div className="px-4 py-1.5 border-b border-gray-800/50 bg-gray-900/50">
+        <MenuBar />
+      </div>
+      
       <div className="px-6 py-4">
         <div className="flex items-center justify-between gap-6">
           {/* Left Section - Logo & Stats */}
