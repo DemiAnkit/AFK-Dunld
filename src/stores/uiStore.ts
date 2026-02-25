@@ -5,6 +5,7 @@ interface UIState {
   isAddDialogOpen: boolean;
   isSettingsOpen: boolean;
   isAddCategoryDialogOpen: boolean;
+  isKeyboardShortcutsOpen: boolean;
   selectedDownloadId: string | null;
   sidebarCollapsed: boolean;
   customCategories: string[];
@@ -18,6 +19,7 @@ interface UIState {
   setAddDialogOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   setAddCategoryDialogOpen: (open: boolean) => void;
+  setKeyboardShortcutsOpen: (open: boolean) => void;
   setSelectedDownload: (id: string | null) => void;
   toggleSidebar: () => void;
   addCategory: (category: string) => void;
@@ -45,6 +47,7 @@ export const useUIStore = create<UIState>()(
       isAddDialogOpen: false,
       isSettingsOpen: false,
       isAddCategoryDialogOpen: false,
+      isKeyboardShortcutsOpen: false,
       selectedDownloadId: null,
       sidebarCollapsed: false,
       customCategories: [],
@@ -58,6 +61,7 @@ export const useUIStore = create<UIState>()(
       setAddDialogOpen: (open: boolean) => set({ isAddDialogOpen: open }),
       setSettingsOpen: (open: boolean) => set({ isSettingsOpen: open }),
       setAddCategoryDialogOpen: (open: boolean) => set({ isAddCategoryDialogOpen: open }),
+      setKeyboardShortcutsOpen: (open: boolean) => set({ isKeyboardShortcutsOpen: open }),
       setSelectedDownload: (id: string | null) => set({ selectedDownloadId: id }),
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       addCategory: (category: string) =>

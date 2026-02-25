@@ -1,8 +1,8 @@
 import { Keyboard } from 'lucide-react';
-import { useState } from 'react';
+import { useUIStore } from '../../stores/uiStore';
 
 export function KeyboardShortcutsHelp() {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isKeyboardShortcutsOpen, setKeyboardShortcutsOpen } = useUIStore();
 
   const shortcuts = [
     { key: 'Ctrl/Cmd + N', description: 'Open new download dialog', category: 'General' },
@@ -29,7 +29,7 @@ export function KeyboardShortcutsHelp() {
   return (
     <>
       <button
-        onClick={() => setIsOpen(true)}
+        onClick={() => setKeyboardShortcutsOpen(true)}
         className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 
                  rounded-xl transition-all duration-200 border border-transparent
                  hover:border-blue-500/30 hover:scale-110 active:scale-95"
@@ -38,9 +38,9 @@ export function KeyboardShortcutsHelp() {
         <Keyboard size={18} />
       </button>
 
-      {isOpen && (
+      {isKeyboardShortcutsOpen && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-             onClick={() => setIsOpen(false)}>
+             onClick={() => setKeyboardShortcutsOpen(false)}>
           <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full mx-4"
                onClick={e => e.stopPropagation()}>
             <div className="p-6">
@@ -72,7 +72,7 @@ export function KeyboardShortcutsHelp() {
               </div>
 
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => setKeyboardShortcutsOpen(false)}
                 className="mt-6 w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors"
               >
                 Got it!

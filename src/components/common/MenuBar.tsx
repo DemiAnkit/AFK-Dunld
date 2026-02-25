@@ -29,7 +29,7 @@ export function MenuBar() {
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { setAddDialogOpen, fontSize, toolbarSize, setFontSize, setToolbarSize } = useUIStore();
+  const { setAddDialogOpen, fontSize, toolbarSize, setFontSize, setToolbarSize, setKeyboardShortcutsOpen } = useUIStore();
   const { downloads } = useDownloadStore();
   const { theme, setTheme } = useTheme();
 
@@ -255,6 +255,7 @@ export function MenuBar() {
           label: "Keyboard Shortcuts",
           icon: <ExternalLink size={16} />,
           action: () => {
+            setKeyboardShortcutsOpen(true);
             setOpenMenu(null);
           },
         },
