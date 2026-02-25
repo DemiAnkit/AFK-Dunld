@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useDownloadStore } from "../../stores/downloadStore";
 import { useUIStore } from "../../stores/uiStore";
 import { DownloadTableRow } from "./DownloadTableRow";
+import { DownloadGridView } from "./DownloadGridView";
 import { Download, ArrowUpDown, ArrowUp, ArrowDown, Pause, Play, Trash2, X } from "lucide-react";
 import { DownloadSort } from "../../types/download";
 
@@ -12,12 +13,9 @@ interface DownloadTableProps {
 
 export function DownloadTable({ filter }: DownloadTableProps) {
   const { downloads, pauseSelected, resumeSelected, removeSelected } = useDownloadStore();
-  const { searchQuery, selectedDownloads, selectAll, clearSelection } = useUIStore();
+  const { searchQuery, selectedDownloads, selectAll, clearSelection, viewMode } = useUIStore();
   const [sort, setSort] = useState<DownloadSort>({ field: "createdAt", order: "desc" });
 
-  // View mode is available for future grid view implementation
-  // const { viewMode } = useUIStore();
-  
   // Filter by status/category first
   let filteredDownloads = downloads.filter((d) => {
     switch (filter) {
@@ -213,71 +211,99 @@ export function DownloadTable({ filter }: DownloadTableProps) {
         </div>
       )}
       
-      {/* Table Header */}
-      <div className="grid gap-4 px-4 py-3 bg-gray-100 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider backdrop-blur-sm sticky top-0 z-10"
-           style={{ gridTemplateColumns: 'auto 1fr 120px 100px 100px 180px 140px' }}>
-        <div className="flex items-center justify-center">
-          <input 
-            type="checkbox"
-            checked={isAllSelected}
-            ref={(el) => {
-              if (el) el.indeterminate = isSomeSelected;
-            }}
-            onChange={handleSelectAll}
-            className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-500 focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer" 
-            title={isAllSelected ? "Deselect All" : "Select All"} 
-          />
-        </div>
-        <button 
-          onClick={() => handleSort("fileName")}
-          className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
-        >
-          File Name
-          {getSortIcon("fileName")}
-        </button>
-        <div className="flex items-center">Status</div>
-        <div className="flex items-center">Size</div>
-        <div className="flex items-center">Speed</div>
-        <button 
-          onClick={() => handleSort("createdAt")}
-          className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
-        >
-          Date/Time
-          {getSortIcon("createdAt")}
-        </button>
-        <div className="flex items-center justify-end pr-4">Actions</div>
-      </div>
-
-      {/* Table Body */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {filteredDownloads.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-            <div className="text-center">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-gray-800/50 flex items-center justify-center">
-                <Download className="w-10 h-10 opacity-30" />
+      {/* Grid View */}
+      {viewMode === 'grid' ? (
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          {filteredDownloads.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="text-center">
+                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-gray-800/50 flex items-center justify-center">
+                  <Download className="w-10 h-10 opacity-30" />
+                </div>
+                <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
+                  {searchQuery ? 'No downloads match your search' : 'No downloads found'}
+                </p>
+                <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
+                  {searchQuery ? 'Try a different search term' : 'Click "Add Download" to get started'}
+                </p>
               </div>
-              <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
-                {searchQuery ? 'No downloads match your search' : 'No downloads found'}
-              </p>
-              <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
-                {searchQuery ? 'Try a different search term' : 'Click "Add Download" to get started'}
-              </p>
             </div>
+          ) : (
+            <DownloadGridView downloads={filteredDownloads} />
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Table Header - List View Only */}
+          <div className="grid gap-4 px-4 py-3 bg-gray-100 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider backdrop-blur-sm sticky top-0 z-10"
+               style={{ gridTemplateColumns: 'auto 1fr 120px 100px 100px 180px 140px' }}>
+            <div className="flex items-center justify-center">
+              <input 
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = isSomeSelected;
+                }}
+                onChange={handleSelectAll}
+                className="w-3.5 h-3.5 rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-500 focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer" 
+                title={isAllSelected ? "Deselect All" : "Select All"} 
+              />
+            </div>
+            <button 
+              onClick={() => handleSort("fileName")}
+              className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
+            >
+              File Name
+              {getSortIcon("fileName")}
+            </button>
+            <div className="flex items-center">Status</div>
+            <div className="flex items-center">Size</div>
+            <div className="flex items-center">Speed</div>
+            <button 
+              onClick={() => handleSort("createdAt")}
+              className="flex items-center gap-2 hover:text-gray-900 dark:hover:text-white transition-colors text-left"
+            >
+              Date/Time
+              {getSortIcon("createdAt")}
+            </button>
+            <div className="flex items-center justify-end pr-4">Actions</div>
           </div>
-        ) : (
-          <div className="divide-y divide-gray-200 dark:divide-gray-800/30">
-            {filteredDownloads.map((download) => (
-              <DownloadTableRow key={download.id} download={download} />
-            ))}
+
+          {/* Table Body - List View */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin">
+            {filteredDownloads.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+                <div className="text-center">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-200 dark:bg-gray-800/50 flex items-center justify-center">
+                    <Download className="w-10 h-10 opacity-30" />
+                  </div>
+                  <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
+                    {searchQuery ? 'No downloads match your search' : 'No downloads found'}
+                  </p>
+                  <p className="text-sm mt-2 text-gray-500 dark:text-gray-500">
+                    {searchQuery ? 'Try a different search term' : 'Click "Add Download" to get started'}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200 dark:divide-gray-800/30">
+                {filteredDownloads.map((download) => (
+                  <DownloadTableRow key={download.id} download={download} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
       
       {/* Results count footer */}
       {filteredDownloads.length > 0 && (
         <div className="px-4 py-2 bg-gray-100 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-800 text-xs text-gray-500 dark:text-gray-500">
-          Showing {filteredDownloads.length} of {downloads.length} downloads
-          {searchQuery && ` (filtered by "${searchQuery}")`}
+          {viewMode === 'grid' ? (
+            <span>Showing {filteredDownloads.length} of {downloads.length} downloads in grid view</span>
+          ) : (
+            <span>Showing {filteredDownloads.length} of {downloads.length} downloads{searchQuery && ` (filtered by "${searchQuery}")`}</span>
+          )}
         </div>
       )}
     </div>
