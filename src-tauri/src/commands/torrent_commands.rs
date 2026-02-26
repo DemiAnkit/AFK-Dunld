@@ -283,72 +283,183 @@ pub async fn get_torrent_metadata(
 
 #[tauri::command]
 pub async fn add_web_seed(
-    _state: State<'_, AppState>,
-    _info_hash: String,
+    state: State<'_, AppState>,
+    info_hash: String,
     url: String,
     seed_type: String,
 ) -> Result<(), String> {
-    let _web_seed_type = match seed_type.as_str() {
+    let web_seed_type = match seed_type.as_str() {
         "GetRight" => WebSeedType::GetRight,
         "WebSeed" => WebSeedType::WebSeed,
         _ => return Err("Invalid web seed type".to_string()),
     };
     
-    // TODO: Store web seed in torrent metadata
-    Ok(())
+    let web_seed = WebSeed::new(url, web_seed_type);
+    state
+        .torrent_client
+        .add_web_seed(&info_hash, web_seed)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn remove_web_seed(
+    state: State<'_, AppState>,
+    info_hash: String,
+    url: String,
+) -> Result<(), String> {
+    state
+        .torrent_client
+        .remove_web_seed(&info_hash, &url)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_web_seeds(
+    state: State<'_, AppState>,
+    info_hash: String,
+) -> Result<Vec<WebSeed>, String> {
+    state
+        .torrent_client
+        .get_web_seeds(&info_hash)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn set_encryption_config(
-    _state: State<'_, AppState>,
-    _info_hash: String,
+    state: State<'_, AppState>,
+    info_hash: String,
     enabled: bool,
     mode: String,
     prefer_encrypted: bool,
 ) -> Result<(), String> {
-    let _encryption_mode = match mode.as_str() {
+    let encryption_mode = match mode.as_str() {
         "Disabled" => EncryptionMode::Disabled,
         "Enabled" => EncryptionMode::Enabled,
         "Required" => EncryptionMode::Required,
         _ => return Err("Invalid encryption mode".to_string()),
     };
     
-    // TODO: Apply encryption config to torrent
-    Ok(())
+    let encryption = EncryptionConfig::new(enabled, encryption_mode, prefer_encrypted);
+    state
+        .torrent_client
+        .set_encryption(&info_hash, encryption)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_encryption_config(
+    state: State<'_, AppState>,
+    info_hash: String,
+) -> Result<EncryptionConfig, String> {
+    state
+        .torrent_client
+        .get_encryption(&info_hash)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn add_blocked_ip(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
+    info_hash: String,
     ip: String,
 ) -> Result<(), String> {
-    // TODO: Add IP to filter list
-    Ok(())
+    state
+        .torrent_client
+        .add_blocked_ip(&info_hash, ip)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn remove_blocked_ip(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
+    info_hash: String,
     ip: String,
 ) -> Result<(), String> {
-    // TODO: Remove IP from filter list
-    Ok(())
+    state
+        .torrent_client
+        .remove_blocked_ip(&info_hash, &ip)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_ip_filter(
+    state: State<'_, AppState>,
+    info_hash: String,
+) -> Result<IpFilter, String> {
+    state
+        .torrent_client
+        .get_ip_filter(&info_hash)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_ip_filter(
+    state: State<'_, AppState>,
+    info_hash: String,
+    ip_filter: IpFilter,
+) -> Result<(), String> {
+    state
+        .torrent_client
+        .set_ip_filter(&info_hash, ip_filter)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn get_advanced_config(
-    _state: State<'_, AppState>,
-    _info_hash: String,
+    state: State<'_, AppState>,
+    info_hash: String,
 ) -> Result<TorrentAdvancedConfig, String> {
-    Ok(TorrentAdvancedConfig::default())
+    state
+        .torrent_client
+        .get_advanced_config(&info_hash)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn set_advanced_config(
-    _state: State<'_, AppState>,
-    _info_hash: String,
-    _config: TorrentAdvancedConfig,
+    state: State<'_, AppState>,
+    info_hash: String,
+    config: TorrentAdvancedConfig,
 ) -> Result<(), String> {
-    // TODO: Apply advanced configuration
-    Ok(())
+    state
+        .torrent_client
+        .set_advanced_config(&info_hash, config)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_seed_ratio_limit(
+    state: State<'_, AppState>,
+    info_hash: String,
+    ratio: Option<f64>,
+) -> Result<(), String> {
+    state
+        .torrent_client
+        .set_seed_ratio_limit(&info_hash, ratio)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn set_max_connections(
+    state: State<'_, AppState>,
+    info_hash: String,
+    max_connections: Option<usize>,
+) -> Result<(), String> {
+    state
+        .torrent_client
+        .set_max_connections(&info_hash, max_connections)
+        .await
+        .map_err(|e| e.to_string())
 }

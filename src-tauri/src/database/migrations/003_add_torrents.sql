@@ -61,6 +61,44 @@ CREATE TABLE IF NOT EXISTS torrent_schedules (
     FOREIGN KEY (info_hash) REFERENCES torrents(info_hash) ON DELETE CASCADE
 );
 
+-- Torrent web seeds table
+CREATE TABLE IF NOT EXISTS torrent_web_seeds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    info_hash TEXT NOT NULL,
+    url TEXT NOT NULL,
+    seed_type TEXT NOT NULL,
+    UNIQUE(info_hash, url),
+    FOREIGN KEY (info_hash) REFERENCES torrents(info_hash) ON DELETE CASCADE
+);
+
+-- Torrent encryption config table
+CREATE TABLE IF NOT EXISTS torrent_encryption (
+    info_hash TEXT PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT 1,
+    mode TEXT NOT NULL DEFAULT 'Enabled',
+    prefer_encrypted BOOLEAN NOT NULL DEFAULT 1,
+    FOREIGN KEY (info_hash) REFERENCES torrents(info_hash) ON DELETE CASCADE
+);
+
+-- Torrent IP filter table
+CREATE TABLE IF NOT EXISTS torrent_ip_filter (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    info_hash TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    UNIQUE(info_hash, ip),
+    FOREIGN KEY (info_hash) REFERENCES torrents(info_hash) ON DELETE CASCADE
+);
+
+-- Torrent advanced options table
+CREATE TABLE IF NOT EXISTS torrent_advanced_options (
+    info_hash TEXT PRIMARY KEY,
+    seed_ratio_limit REAL,
+    max_connections INTEGER,
+    max_upload_slots INTEGER,
+    seed_time_limit INTEGER,
+    FOREIGN KEY (info_hash) REFERENCES torrents(info_hash) ON DELETE CASCADE
+);
+
 -- Indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_torrents_state ON torrents(state);
 CREATE INDEX IF NOT EXISTS idx_torrents_priority ON torrents(priority DESC);
@@ -69,3 +107,5 @@ CREATE INDEX IF NOT EXISTS idx_torrents_added ON torrents(added_time DESC);
 CREATE INDEX IF NOT EXISTS idx_torrent_files_hash ON torrent_files(info_hash);
 CREATE INDEX IF NOT EXISTS idx_torrent_tags_hash ON torrent_tags(info_hash);
 CREATE INDEX IF NOT EXISTS idx_torrent_tags_tag ON torrent_tags(tag);
+CREATE INDEX IF NOT EXISTS idx_torrent_web_seeds_hash ON torrent_web_seeds(info_hash);
+CREATE INDEX IF NOT EXISTS idx_torrent_ip_filter_hash ON torrent_ip_filter(info_hash);

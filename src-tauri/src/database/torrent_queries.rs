@@ -6,6 +6,7 @@ use crate::database::models::{TorrentRow, TorrentFileRow, TorrentBandwidthRow, T
 use crate::utils::error::AppError;
 use crate::network::torrent_client_librqbit::{TorrentInfo, TorrentStats, TorrentFile};
 use crate::network::torrent_helpers::{TorrentMetadata, BandwidthLimit, TorrentSchedule};
+use crate::network::torrent_advanced::{WebSeed, WebSeedType, EncryptionConfig, EncryptionMode};
 
 /// Save or update torrent metadata in database
 pub async fn save_torrent(
@@ -75,6 +76,197 @@ pub async fn save_torrent(
 
     // Save schedule
     save_schedule(pool, &info.info_hash, &metadata.schedule).await?;
+
+    Ok(())
+}
+
+/// Save web seeds for a torrent
+pub async fn save_web_seeds(
+    pool: &SqlitePool,
+    info_hash: &str,
+    web_seeds: &[WebSeed],
+) -> Result<(), AppError> {
+    // Delete existing web seeds
+    sqlx::query("DELETE FROM torrent_web_seeds WHERE info_hash = ?")
+        .bind(info_hash)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to delete web seeds: {}", e)))?;
+
+    // Insert new web seeds
+    for seed in web_seeds {
+        let seed_type_str = match seed.seed_type {
+            WebSeedType::GetRight => "GetRight",
+            WebSeedType::WebSeed => "WebSeed",
+        };
+
+        sqlx::query(
+            "INSERT INTO torrent_web_seeds (info_hash, url, seed_type) VALUES (?, ?, ?)"
+        )
+        .bind(info_hash)
+        .bind(&seed.url)
+        .bind(seed_type_str)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to save web seed: {}", e)))?;
+    }
+
+    Ok(())
+}
+
+/// Load web seeds for a torrent
+pub async fn load_web_seeds(
+    pool: &SqlitePool,
+    info_hash: &str,
+) -> Result<Vec<WebSeed>, AppError> {
+    let rows = sqlx::query("SELECT url, seed_type FROM torrent_web_seeds WHERE info_hash = ?")
+        .bind(info_hash)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to load web seeds: {}", e)))?;
+
+    let mut web_seeds = Vec::new();
+    for row in rows {
+        let url: String = row.get("url");
+        let seed_type_str: String = row.get("seed_type");
+        let seed_type = match seed_type_str.as_str() {
+            "GetRight" => WebSeedType::GetRight,
+            _ => WebSeedType::WebSeed,
+        };
+
+        web_seeds.push(WebSeed { url, seed_type });
+    }
+
+    Ok(web_seeds)
+}
+
+/// Save encryption config for a torrent
+pub async fn save_encryption_config(
+    pool: &SqlitePool,
+    info_hash: &str,
+    encryption: &EncryptionConfig,
+) -> Result<(), AppError> {
+    let mode_str = match encryption.mode {
+        EncryptionMode::Disabled => "Disabled",
+        EncryptionMode::Enabled => "Enabled",
+        EncryptionMode::Required => "Required",
+    };
+
+    sqlx::query(
+        r#"
+        INSERT INTO torrent_encryption (info_hash, enabled, mode, prefer_encrypted)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(info_hash) DO UPDATE SET
+            enabled = excluded.enabled,
+            mode = excluded.mode,
+            prefer_encrypted = excluded.prefer_encrypted
+        "#,
+    )
+    .bind(info_hash)
+    .bind(encryption.enabled)
+    .bind(mode_str)
+    .bind(encryption.prefer_encrypted)
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::DatabaseError(format!("Failed to save encryption config: {}", e)))?;
+
+    Ok(())
+}
+
+/// Load encryption config for a torrent
+pub async fn load_encryption_config(
+    pool: &SqlitePool,
+    info_hash: &str,
+) -> Result<EncryptionConfig, AppError> {
+    let row = sqlx::query("SELECT enabled, mode, prefer_encrypted FROM torrent_encryption WHERE info_hash = ?")
+        .bind(info_hash)
+        .fetch_optional(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to load encryption config: {}", e)))?;
+
+    if let Some(row) = row {
+        let enabled: bool = row.get("enabled");
+        let mode_str: String = row.get("mode");
+        let prefer_encrypted: bool = row.get("prefer_encrypted");
+
+        let mode = match mode_str.as_str() {
+            "Disabled" => EncryptionMode::Disabled,
+            "Required" => EncryptionMode::Required,
+            _ => EncryptionMode::Enabled,
+        };
+
+        Ok(EncryptionConfig {
+            enabled,
+            mode,
+            prefer_encrypted,
+        })
+    } else {
+        Ok(EncryptionConfig::default())
+    }
+}
+
+/// Save blocked IPs for a torrent
+pub async fn save_blocked_ips(
+    pool: &SqlitePool,
+    info_hash: &str,
+    ips: &[String],
+) -> Result<(), AppError> {
+    // Delete existing blocked IPs
+    sqlx::query("DELETE FROM torrent_ip_filter WHERE info_hash = ?")
+        .bind(info_hash)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to delete blocked IPs: {}", e)))?;
+
+    // Insert new blocked IPs
+    for ip in ips {
+        sqlx::query("INSERT INTO torrent_ip_filter (info_hash, ip) VALUES (?, ?)")
+            .bind(info_hash)
+            .bind(ip)
+            .execute(pool)
+            .await
+            .map_err(|e| AppError::DatabaseError(format!("Failed to save blocked IP: {}", e)))?;
+    }
+
+    Ok(())
+}
+
+/// Load blocked IPs for a torrent
+pub async fn load_blocked_ips(
+    pool: &SqlitePool,
+    info_hash: &str,
+) -> Result<Vec<String>, AppError> {
+    let rows = sqlx::query("SELECT ip FROM torrent_ip_filter WHERE info_hash = ?")
+        .bind(info_hash)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::DatabaseError(format!("Failed to load blocked IPs: {}", e)))?;
+
+    Ok(rows.iter().map(|row| row.get("ip")).collect())
+}
+
+/// Save advanced options for a torrent
+pub async fn save_advanced_options(
+    pool: &SqlitePool,
+    info_hash: &str,
+    seed_ratio_limit: Option<f64>,
+    max_connections: Option<usize>,
+) -> Result<(), AppError> {
+    sqlx::query(
+        r#"
+        INSERT INTO torrent_advanced_options (info_hash, seed_ratio_limit, max_connections)
+        VALUES (?, ?, ?)
+        ON CONFLICT(info_hash) DO UPDATE SET
+            seed_ratio_limit = excluded.seed_ratio_limit,
+            max_connections = excluded.max_connections
+        "#,
+    )
+    .bind(info_hash)
+    .bind(seed_ratio_limit)
+    .bind(max_connections.map(|c| c as i64))
+    .execute(pool)
+    .await
+    .map_err(|e| AppError::DatabaseError(format!("Failed to save advanced options: {}", e)))?;
 
     Ok(())
 }

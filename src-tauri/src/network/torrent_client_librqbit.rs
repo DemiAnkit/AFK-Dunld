@@ -9,6 +9,10 @@ use crate::utils::error::AppError;
 use std::collections::HashMap;
 use crate::network::bencode_parser::{TorrentFile as BencodeTorrentFile, MagnetLink};
 use crate::network::torrent_helpers::{TorrentMetadata, TorrentPriority, BandwidthLimit, TorrentSchedule};
+use crate::network::torrent_advanced::{
+    AdvancedTorrentOptions, WebSeed, EncryptionConfig, IpFilter, 
+    TorrentAdvancedConfig, WebSeedDownloader
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TorrentInfo {
@@ -51,6 +55,8 @@ pub struct LibrqbitTorrentClient {
     session: Option<Arc<librqbit::Session>>,
     torrents: Arc<RwLock<HashMap<String, TorrentHandle>>>,
     metadata: Arc<RwLock<HashMap<String, TorrentMetadata>>>,
+    advanced_config: Arc<RwLock<HashMap<String, TorrentAdvancedConfig>>>,
+    web_seed_downloader: Arc<WebSeedDownloader>,
     config: TorrentConfig,
 }
 
@@ -102,6 +108,8 @@ impl LibrqbitTorrentClient {
             session,
             torrents: Arc::new(RwLock::new(HashMap::new())),
             metadata: Arc::new(RwLock::new(HashMap::new())),
+            advanced_config: Arc::new(RwLock::new(HashMap::new())),
+            web_seed_downloader: Arc::new(WebSeedDownloader::new()),
             config,
         })
     }
@@ -423,6 +431,180 @@ impl LibrqbitTorrentClient {
             Ok(())
         } else {
             Err(AppError::TorrentError("Torrent not found".to_string()))
+        }
+    }
+
+    // ============= Advanced Features =============
+
+    /// Add a web seed to a torrent
+    pub async fn add_web_seed(&self, info_hash: &str, web_seed: WebSeed) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        let config = advanced.entry(info_hash.to_string())
+            .or_insert_with(TorrentAdvancedConfig::default);
+        
+        config.options.web_seeds.push(web_seed);
+        Ok(())
+    }
+
+    /// Remove a web seed from a torrent
+    pub async fn remove_web_seed(&self, info_hash: &str, url: &str) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        if let Some(config) = advanced.get_mut(info_hash) {
+            config.options.web_seeds.retain(|ws| ws.url != url);
+            Ok(())
+        } else {
+            Err(AppError::TorrentError("Torrent not found".to_string()))
+        }
+    }
+
+    /// Get all web seeds for a torrent
+    pub async fn get_web_seeds(&self, info_hash: &str) -> Result<Vec<WebSeed>, AppError> {
+        let advanced = self.advanced_config.read().await;
+        Ok(advanced.get(info_hash)
+            .map(|c| c.options.web_seeds.clone())
+            .unwrap_or_default())
+    }
+
+    /// Set encryption configuration for a torrent
+    pub async fn set_encryption(&self, info_hash: &str, encryption: EncryptionConfig) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        let config = advanced.entry(info_hash.to_string())
+            .or_insert_with(TorrentAdvancedConfig::default);
+        
+        config.options.encryption = encryption;
+        Ok(())
+    }
+
+    /// Get encryption configuration for a torrent
+    pub async fn get_encryption(&self, info_hash: &str) -> Result<EncryptionConfig, AppError> {
+        let advanced = self.advanced_config.read().await;
+        Ok(advanced.get(info_hash)
+            .map(|c| c.options.encryption.clone())
+            .unwrap_or_default())
+    }
+
+    /// Set IP filter
+    pub async fn set_ip_filter(&self, info_hash: &str, ip_filter: IpFilter) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        let config = advanced.entry(info_hash.to_string())
+            .or_insert_with(TorrentAdvancedConfig::default);
+        
+        config.ip_filter = ip_filter;
+        Ok(())
+    }
+
+    /// Get IP filter
+    pub async fn get_ip_filter(&self, info_hash: &str) -> Result<IpFilter, AppError> {
+        let advanced = self.advanced_config.read().await;
+        Ok(advanced.get(info_hash)
+            .map(|c| c.ip_filter.clone())
+            .unwrap_or_default())
+    }
+
+    /// Add blocked IP
+    pub async fn add_blocked_ip(&self, info_hash: &str, ip: String) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        let config = advanced.entry(info_hash.to_string())
+            .or_insert_with(TorrentAdvancedConfig::default);
+        
+        config.ip_filter.add_ip(ip);
+        config.ip_filter.enabled = true;
+        Ok(())
+    }
+
+    /// Remove blocked IP
+    pub async fn remove_blocked_ip(&self, info_hash: &str, ip: &str) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        if let Some(config) = advanced.get_mut(info_hash) {
+            config.ip_filter.remove_ip(ip);
+            Ok(())
+        } else {
+            Err(AppError::TorrentError("Torrent not found".to_string()))
+        }
+    }
+
+    /// Get all advanced configuration for a torrent
+    pub async fn get_advanced_config(&self, info_hash: &str) -> Result<TorrentAdvancedConfig, AppError> {
+        let advanced = self.advanced_config.read().await;
+        Ok(advanced.get(info_hash)
+            .cloned()
+            .unwrap_or_default())
+    }
+
+    /// Set complete advanced configuration for a torrent
+    pub async fn set_advanced_config(&self, info_hash: &str, config: TorrentAdvancedConfig) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        advanced.insert(info_hash.to_string(), config);
+        Ok(())
+    }
+
+    /// Set seed ratio limit
+    pub async fn set_seed_ratio_limit(&self, info_hash: &str, ratio: Option<f64>) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        let config = advanced.entry(info_hash.to_string())
+            .or_insert_with(TorrentAdvancedConfig::default);
+        
+        config.options.seed_ratio_limit = ratio;
+        Ok(())
+    }
+
+    /// Set maximum connections
+    pub async fn set_max_connections(&self, info_hash: &str, max_connections: Option<usize>) -> Result<(), AppError> {
+        let mut advanced = self.advanced_config.write().await;
+        let config = advanced.entry(info_hash.to_string())
+            .or_insert_with(TorrentAdvancedConfig::default);
+        
+        config.options.max_connections = max_connections;
+        Ok(())
+    }
+
+    /// Check if should seed based on ratio
+    pub async fn should_continue_seeding(&self, info_hash: &str, stats: &TorrentStats) -> Result<bool, AppError> {
+        let advanced = self.advanced_config.read().await;
+        
+        if let Some(config) = advanced.get(info_hash) {
+            // Check seed ratio limit
+            if let Some(limit) = config.options.seed_ratio_limit {
+                if stats.downloaded > 0 {
+                    let current_ratio = stats.uploaded as f64 / stats.downloaded as f64;
+                    if current_ratio >= limit {
+                        return Ok(false); // Stop seeding
+                    }
+                }
+            }
+
+            Ok(true) // Continue seeding
+        } else {
+            Ok(true) // No limits set, continue seeding
+        }
+    }
+
+    /// Download from web seed as fallback
+    pub async fn download_from_web_seed(
+        &self,
+        info_hash: &str,
+        file_path: &str,
+        offset: u64,
+        length: u64,
+    ) -> Result<Vec<u8>, AppError> {
+        let advanced = self.advanced_config.read().await;
+        
+        if let Some(config) = advanced.get(info_hash) {
+            for web_seed in &config.options.web_seeds {
+                match self.web_seed_downloader
+                    .download_piece(web_seed, file_path, offset, length)
+                    .await
+                {
+                    Ok(data) => return Ok(data),
+                    Err(e) => {
+                        tracing::warn!("Web seed {} failed: {}", web_seed.url, e);
+                        continue; // Try next web seed
+                    }
+                }
+            }
+            Err(AppError::TorrentError("All web seeds failed".to_string()))
+        } else {
+            Err(AppError::TorrentError("No web seeds configured".to_string()))
         }
     }
 }
