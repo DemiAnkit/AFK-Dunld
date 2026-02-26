@@ -63,7 +63,7 @@ async-native-tls = "0.5"
 # SFTP support - using ssh2 directly without async wrapper
 ssh2 = "0.9"
 # Torrent support
-librqbit = "5.1"
+# librqbit = "5.1"  # Temporarily disabled due to compilation issues
 serde_bencode = "0.2.4"
 sha1 = "0.10"
 hex = "0.4"

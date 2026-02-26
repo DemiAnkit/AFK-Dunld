@@ -3,44 +3,13 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
 use crate::utils::error::AppError;
-use crate::network::torrent_client_librqbit::LibrqbitTorrentClient;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TorrentInfo {
-    pub info_hash: String,
-    pub name: String,
-    pub total_size: u64,
-    pub piece_length: u64,
-    pub num_pieces: u64,
-    pub files: Vec<TorrentFile>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TorrentFile {
-    pub path: PathBuf,
-    pub size: u64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TorrentStats {
-    pub downloaded: u64,
-    pub uploaded: u64,
-    pub download_rate: u64,
-    pub upload_rate: u64,
-    pub peers: usize,
-    pub seeders: usize,
-    pub progress: f64,
-    pub eta: Option<u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum TorrentState {
-    Downloading,
-    Seeding,
-    Paused,
-    Checking,
-    Error(String),
-}
+use crate::network::torrent_client_librqbit::{
+    LibrqbitTorrentClient,
+    TorrentInfo,
+    TorrentFile,
+    TorrentStats,
+    TorrentState,
+};
 
 pub struct TorrentClient {
     backend: Arc<LibrqbitTorrentClient>,
@@ -207,8 +176,7 @@ impl TorrentClient {
 
     /// Get list of all torrents
     pub async fn list_torrents(&self) -> Result<Vec<TorrentInfo>, AppError> {
-        let torrents = self.torrents.read().await;
-        Ok(torrents.values().map(|h| h.info.clone()).collect())
+        self.backend.list_torrents().await
     }
     
     /// Update statistics from backend (should be called periodically)

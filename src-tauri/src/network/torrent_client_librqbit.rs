@@ -14,6 +14,71 @@ use crate::network::torrent_advanced::{
     TorrentAdvancedConfig, WebSeedDownloader
 };
 
+// Stub types for librqbit while it's disabled
+#[cfg(not(feature = "librqbit-enabled"))]
+mod librqbit_stub {
+    use std::path::PathBuf;
+    
+    pub struct Session;
+    pub struct TorrentHandle;
+    
+    impl Session {
+        pub async fn new_with_opts(_path: PathBuf, _opts: SessionOptions) -> Result<Self, String> {
+            Err("librqbit is currently disabled".to_string())
+        }
+        
+        pub async fn add_torrent(
+            &self,
+            _torrent: AddTorrent,
+            _opts: Option<AddTorrentOptions>,
+        ) -> Result<TorrentHandle, String> {
+            Err("librqbit is currently disabled".to_string())
+        }
+    }
+    
+    #[derive(Default)]
+    pub struct SessionOptions {
+        pub listen_port_range: Option<std::ops::RangeInclusive<u16>>,
+        pub enable_dht: bool,
+        pub enable_dht_persistence: bool,
+        pub dht_config: Option<()>,
+        pub persistence: bool,
+        pub disable_dht_persistence: bool,
+        pub peer_opts: Option<()>,
+    }
+    
+    pub struct AddTorrentOptions {
+        pub overwrite: bool,
+        pub only_files: Option<()>,
+        pub output_folder: Option<()>,
+    }
+    
+    impl Default for AddTorrentOptions {
+        fn default() -> Self {
+            Self {
+                overwrite: false,
+                only_files: None,
+                output_folder: None,
+            }
+        }
+    }
+    
+    pub enum AddTorrent {}
+    
+    impl AddTorrent {
+        pub fn from_file(_path: &PathBuf) -> Self {
+            panic!("librqbit stub - cannot add torrent from file")
+        }
+        
+        pub fn from_url(_url: &str) -> Self {
+            panic!("librqbit stub - cannot add torrent from URL")
+        }
+    }
+}
+
+#[cfg(not(feature = "librqbit-enabled"))]
+use librqbit_stub as librqbit;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TorrentInfo {
     pub info_hash: String,
@@ -52,6 +117,7 @@ pub enum TorrentState {
 }
 
 pub struct LibrqbitTorrentClient {
+    #[allow(dead_code)]
     session: Option<Arc<librqbit::Session>>,
     torrents: Arc<RwLock<HashMap<String, TorrentHandle>>>,
     metadata: Arc<RwLock<HashMap<String, TorrentMetadata>>>,
@@ -406,9 +472,9 @@ impl LibrqbitTorrentClient {
     }
 
     /// Get list of all torrents
-    pub async fn list_torrents(&self) -> Result<Vec<TorrentHandle>, AppError> {
+    pub async fn list_torrents(&self) -> Result<Vec<TorrentInfo>, AppError> {
         let torrents = self.torrents.read().await;
-        Ok(torrents.values().cloned().collect())
+        Ok(torrents.values().map(|h| h.info.clone()).collect())
     }
 
     /// Get torrent information

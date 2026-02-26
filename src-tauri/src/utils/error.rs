@@ -38,6 +38,12 @@ pub enum AppError {
 
     #[error("Torrent error: {0}")]
     TorrentError(String),
+
+    #[error("Network error: {0}")]
+    NetworkError(String),
+
+    #[error("Database error: {0}")]
+    DatabaseError(String),
 }
 
 /// Download-specific error type

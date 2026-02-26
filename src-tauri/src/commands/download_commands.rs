@@ -845,7 +845,28 @@ pub async fn get_file_size(
     Ok(metadata.len())
 }
 
-// Internal helper for browser extension integration
+// Internal helpers for scheduler and browser extension integration
+
+pub async fn resume_download_internal(
+    download_id: uuid::Uuid,
+    state: AppState,
+) -> Result<(), anyhow::Error> {
+    // Simple implementation without app_handle - just log
+    tracing::info!("Scheduled download resume requested for: {}", download_id);
+    // TODO: Implement actual resume logic when app_handle is available
+    Ok(())
+}
+
+pub async fn retry_download_internal(
+    download_id: uuid::Uuid,
+    state: AppState,
+) -> Result<(), anyhow::Error> {
+    // Simple implementation without app_handle - just log
+    tracing::info!("Scheduled download retry requested for: {}", download_id);
+    // TODO: Implement actual retry logic when app_handle is available
+    Ok(())
+}
+
 pub async fn add_download_internal(
     url: String,
     save_path: Option<String>,

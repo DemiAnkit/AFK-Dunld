@@ -28,7 +28,7 @@ pub struct DownloadRow {
 }
 
 /// Database row for a torrent
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TorrentRow {
     pub info_hash: String,
     pub name: String,
@@ -52,7 +52,7 @@ pub struct TorrentRow {
 }
 
 /// Database row for a torrent file
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TorrentFileRow {
     pub id: Option<i64>,
     pub info_hash: String,
@@ -61,7 +61,7 @@ pub struct TorrentFileRow {
 }
 
 /// Database row for torrent bandwidth limits
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TorrentBandwidthRow {
     pub info_hash: String,
     pub download_limit: Option<i64>,
@@ -70,7 +70,7 @@ pub struct TorrentBandwidthRow {
 }
 
 /// Database row for torrent schedules
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct TorrentScheduleRow {
     pub info_hash: String,
     pub start_time: Option<String>,

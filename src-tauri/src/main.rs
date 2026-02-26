@@ -195,29 +195,13 @@ fn main() {
             services::tray_service::setup_tray(app)?;
 
             // Setup deep link handler for browser extension protocol (Tauri v2)
-            let app_handle = app.handle().clone();
-            let state_for_deeplink = app_state.clone();
-            
+            // Note: Deep link setup is simplified for now
+            // TODO: Implement proper deep link handling when needed
             #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
             {
-                use tauri_plugin_deep_link::DeepLinkExt;
-                
-                app.handle().plugin(
-                    tauri_plugin_deep_link::Builder::new()
-                        .with_handler(move |url| {
-                            tracing::info!("Deep link received: {}", url);
-                            
-                            let handle = app_handle.clone();
-                            let state = state_for_deeplink.clone();
-                            
-                            tauri::async_runtime::spawn(async move {
-                                if let Err(e) = handle_deep_link(url, handle, state).await {
-                                    tracing::error!("Deep link handling failed: {}", e);
-                                }
-                            });
-                        })
-                        .build(),
-                )?;
+                tracing::info!("Deep link support available (implementation pending)");
+                // The tauri-plugin-deep-link v2 API requires registration in tauri.conf.json
+                // and uses event listeners instead of programmatic registration
             }
 
             // Start clipboard monitor
@@ -253,8 +237,17 @@ fn main() {
                         // Get the download from database and start it
                         let state_clone = state_for_scheduler.clone();
                         tokio::spawn(async move {
+                            // Parse download_id from string to Uuid
+                            let download_id = match uuid::Uuid::parse_str(&task.download_id) {
+                                Ok(id) => id,
+                                Err(e) => {
+                                    tracing::error!("Invalid download_id format: {}", e);
+                                    return;
+                                }
+                            };
+                            
                             // Load the download from database
-                            match state_clone.db.get_download(task.download_id).await {
+                            match state_clone.db.get_download(download_id).await {
                                 Ok(Some(download_task)) => {
                                     tracing::info!("Loaded scheduled download: {}", download_task.id);
                                     

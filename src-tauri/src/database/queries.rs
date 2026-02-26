@@ -145,8 +145,8 @@ impl DownloadQuery {
 
         if let Some(ref term) = self.search_term {
             let search_pattern = format!("%{}%", term);
-            query = query.bind(&search_pattern);
-            query = query.bind(&search_pattern);
+            query = query.bind(search_pattern.clone());
+            query = query.bind(search_pattern);
         }
 
         // Execute query

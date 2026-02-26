@@ -318,7 +318,7 @@ impl Database {
     }
 
     /// Convert database row to DownloadTask
-    fn row_to_task(row: DownloadRow) -> DownloadTask {
+    pub fn row_to_task(row: DownloadRow) -> DownloadTask {
         let status = match row.status.as_str() {
             "Queued" => DownloadStatus::Queued,
             "Connecting" => DownloadStatus::Connecting,

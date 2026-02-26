@@ -31,7 +31,7 @@ pub struct TorrentInfo {
     pub name: String,
     #[serde(rename = "piece length")]
     pub piece_length: i64,
-    pub pieces: serde_bencode::value::ByteString,
+    pub pieces: Vec<u8>,
     #[serde(default)]
     pub length: Option<i64>,
     #[serde(default)]
@@ -86,6 +86,17 @@ impl TorrentFile {
     /// Get number of pieces
     pub fn num_pieces(&self) -> u64 {
         (self.info.pieces.len() / 20) as u64
+    }
+    
+    /// Get piece hash at index
+    pub fn get_piece_hash(&self, index: usize) -> Option<&[u8]> {
+        let start = index * 20;
+        let end = start + 20;
+        if end <= self.info.pieces.len() {
+            Some(&self.info.pieces[start..end])
+        } else {
+            None
+        }
     }
 
     /// Get list of files in the torrent

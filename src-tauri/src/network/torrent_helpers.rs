@@ -128,7 +128,7 @@ impl TorrentSchedule {
             return true; // No schedule = always active
         }
 
-        use chrono::{Local, Timelike};
+        use chrono::{Local, Timelike, Datelike};
         let now = Local::now();
         let current_hour = now.hour();
         let current_minute = now.minute();
