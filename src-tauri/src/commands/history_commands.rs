@@ -112,12 +112,98 @@ pub async fn get_history_stats(state: State<'_, AppState>) -> Result<HistoryStat
     })
 }
 
-/// Clear download history
+/// Clear download history (delete completed downloads)
 #[tauri::command]
 pub async fn clear_download_history(state: State<'_, AppState>) -> Result<usize, String> {
-    // For now, return 0 as we don't have delete_all_downloads method
-    // TODO: Implement proper deletion when the database method is available
-    Ok(0)
+    let downloads = state.db.get_all_downloads()
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let mut deleted_count = 0;
+    
+    // Only delete completed, failed, and cancelled downloads
+    for download in downloads {
+        match download.status {
+            crate::core::download_task::DownloadStatus::Completed |
+            crate::core::download_task::DownloadStatus::Failed |
+            crate::core::download_task::DownloadStatus::Cancelled => {
+                if state.db.delete_download(download.id).await.is_ok() {
+                    deleted_count += 1;
+                }
+            },
+            _ => {
+                // Skip active downloads
+            }
+        }
+    }
+    
+    Ok(deleted_count)
+}
+
+/// Delete a specific download from history
+#[tauri::command]
+pub async fn delete_download_from_history(
+    state: State<'_, AppState>,
+    download_id: String,
+) -> Result<(), String> {
+    let id = uuid::Uuid::parse_str(&download_id)
+        .map_err(|e| format!("Invalid download ID: {}", e))?;
+    
+    state.db.delete_download(id)
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+/// Delete multiple downloads from history
+#[tauri::command]
+pub async fn delete_downloads_bulk(
+    state: State<'_, AppState>,
+    download_ids: Vec<String>,
+) -> Result<usize, String> {
+    let mut deleted_count = 0;
+    
+    for id_str in download_ids {
+        if let Ok(id) = uuid::Uuid::parse_str(&id_str) {
+            if state.db.delete_download(id).await.is_ok() {
+                deleted_count += 1;
+            }
+        }
+    }
+    
+    Ok(deleted_count)
+}
+
+/// Clear history older than specified days
+#[tauri::command]
+pub async fn clear_old_history(
+    state: State<'_, AppState>,
+    days: i64,
+) -> Result<usize, String> {
+    let downloads = state.db.get_all_downloads()
+        .await
+        .map_err(|e| e.to_string())?;
+    
+    let cutoff_date = chrono::Local::now().naive_local() - chrono::Duration::days(days);
+    let mut deleted_count = 0;
+    
+    for download in downloads {
+        // Only delete old completed/failed downloads
+        if download.completed_at.is_some() || 
+           matches!(download.status, 
+                    crate::core::download_task::DownloadStatus::Failed | 
+                    crate::core::download_task::DownloadStatus::Cancelled) {
+            
+            if download.created_at < cutoff_date {
+                if state.db.delete_download(download.id).await.is_ok() {
+                    deleted_count += 1;
+                }
+            }
+        }
+    }
+    
+    Ok(deleted_count)
 }
 
 /// Export history to JSON

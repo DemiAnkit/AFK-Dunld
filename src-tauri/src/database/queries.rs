@@ -74,43 +74,38 @@ impl DownloadQuery {
         self
     }
 
-    /// Build and execute the query
+    /// Build and execute the query using proper parameterized queries
     pub async fn execute(&self, db: &Database) -> Result<Vec<DownloadTask>, DownloadError> {
-        let mut query = String::from("SELECT * FROM downloads WHERE 1=1");
-        let mut params: Vec<String> = Vec::new();
-
+        // Build base query
+        let mut query_str = String::from("SELECT * FROM downloads WHERE 1=1");
+        
+        // Build WHERE clause with proper parameterization
+        let mut where_clauses = Vec::new();
+        
         // Status filter
         if let Some(ref statuses) = self.status_filter {
-            let status_placeholders: Vec<String> = statuses
-                .iter()
-                .enumerate()
-                .map(|(i, _)| format!("?{}", params.len() + i + 1))
-                .collect();
-            query.push_str(&format!(" AND status IN ({})", status_placeholders.join(", ")));
-            for status in statuses {
-                params.push(status.as_str().to_string());
+            if !statuses.is_empty() {
+                let placeholders = vec!["?"; statuses.len()].join(", ");
+                where_clauses.push(format!(" AND status IN ({})", placeholders));
             }
         }
 
         // Category filter
-        if let Some(ref category) = self.category_filter {
-            query.push_str(&format!(" AND category = ?{}", params.len() + 1));
-            params.push(category.clone());
+        if self.category_filter.is_some() {
+            where_clauses.push(" AND category = ?".to_string());
         }
 
-        // Search filter (file name or URL)
-        if let Some(ref term) = self.search_term {
-            query.push_str(&format!(
-                " AND (file_name LIKE ?{} OR url LIKE ?{})",
-                params.len() + 1,
-                params.len() + 2
-            ));
-            let search_pattern = format!("%{}%", term);
-            params.push(search_pattern.clone());
-            params.push(search_pattern);
+        // Search filter
+        if self.search_term.is_some() {
+            where_clauses.push(" AND (file_name LIKE ? OR url LIKE ?)".to_string());
         }
 
-        // Sorting
+        // Append WHERE clauses
+        for clause in where_clauses {
+            query_str.push_str(&clause);
+        }
+
+        // Sorting - use whitelisted fields only (prevent SQL injection)
         let sort_field = match self.sort_by {
             SortField::CreatedAt => "created_at",
             SortField::FileName => "file_name",
@@ -124,22 +119,44 @@ impl DownloadQuery {
             SortOrder::Desc => "DESC",
         };
 
-        query.push_str(&format!(" ORDER BY {} {}", sort_field, sort_order));
+        query_str.push_str(&format!(" ORDER BY {} {}", sort_field, sort_order));
 
-        // Pagination
+        // Pagination - use numeric values directly (safe)
         if let Some(limit) = self.limit {
-            query.push_str(&format!(" LIMIT {}", limit));
+            query_str.push_str(&format!(" LIMIT {}", limit));
         }
         if let Some(offset) = self.offset {
-            query.push_str(&format!(" OFFSET {}", offset));
+            query_str.push_str(&format!(" OFFSET {}", offset));
         }
 
-        // Execute query (note: this is a simplified version)
-        // In production, you'd want to use sqlx's query builder properly
-        // For now, we'll fall back to get_all_downloads and filter in memory
-        // TODO: Implement proper parameterized queries
-        
-        db.get_all_downloads().await
+        // Build parameterized query using sqlx
+        let mut query = sqlx::query_as::<_, DownloadRow>(&query_str);
+
+        // Bind parameters in order
+        if let Some(ref statuses) = self.status_filter {
+            for status in statuses {
+                query = query.bind(status.as_str());
+            }
+        }
+
+        if let Some(ref category) = self.category_filter {
+            query = query.bind(category);
+        }
+
+        if let Some(ref term) = self.search_term {
+            let search_pattern = format!("%{}%", term);
+            query = query.bind(&search_pattern);
+            query = query.bind(&search_pattern);
+        }
+
+        // Execute query
+        let rows = query
+            .fetch_all(db.pool())
+            .await
+            .map_err(|e| DownloadError::Unknown(format!("Query failed: {}", e)))?;
+
+        // Convert rows to tasks
+        Ok(rows.into_iter().map(|r| Database::row_to_task(r)).collect())
     }
 }
 

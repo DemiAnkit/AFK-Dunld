@@ -62,8 +62,12 @@ suppaftp = { version = "6.0", features = ["async-secure", "async-native-tls"] }
 async-native-tls = "0.5"
 # SFTP support - using ssh2 directly without async wrapper
 ssh2 = "0.9"
-# Torrent support - using simpler approach for now
-# librqbit = "5.1"  # Commented out due to compilation errors
+# Torrent support
+librqbit = "5.1"
+serde_bencode = "0.2.4"
+sha1 = "0.10"
+hex = "0.4"
+urlencoding = "2.1"
 aes-gcm = "0.10"
 argon2 = "0.5"
 base64 = "0.21"

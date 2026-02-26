@@ -107,6 +107,27 @@ impl Database {
             ))
         })?;
 
+        // Run torrent migrations
+        self.run_torrent_migrations().await?;
+
+        Ok(())
+    }
+
+    /// Run torrent-specific migrations
+    async fn run_torrent_migrations(&self) -> Result<(), DownloadError> {
+        // Read and execute the torrent migration SQL
+        let migration_sql = include_str!("migrations/003_add_torrents.sql");
+        
+        sqlx::query(migration_sql)
+            .execute(&self.pool)
+            .await
+            .map_err(|e| {
+                DownloadError::Unknown(format!(
+                    "Torrent migration failed: {}",
+                    e
+                ))
+            })?;
+
         Ok(())
     }
 
@@ -559,6 +580,11 @@ impl Database {
             .map_err(|e| DownloadError::Unknown(format!("Failed to assign category: {}", e)))?;
 
         Ok(())
+    }
+
+    /// Get the underlying pool for torrent queries
+    pub fn pool(&self) -> &SqlitePool {
+        &self.pool
     }
 }
 

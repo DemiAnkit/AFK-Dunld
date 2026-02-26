@@ -104,3 +104,8 @@ coverage/
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+
+
+IMPLEMENTATION_COMPLETE_SUMMARY.md
+TORRENT_IMPLEMENTATION_SUMMARY.md
+TORRENT_INTEGRATION_GUIDE.md

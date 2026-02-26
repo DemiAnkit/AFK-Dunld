@@ -194,10 +194,31 @@ fn main() {
             // Setup system tray
             services::tray_service::setup_tray(app)?;
 
-            // TODO: Setup deep link handler for browser extension protocol
-            // The tauri-plugin-deep-link v2 API has changed
-            // Need to use the new API which likely involves listening to events
-            // For now, commenting out until we can investigate the correct usage
+            // Setup deep link handler for browser extension protocol (Tauri v2)
+            let app_handle = app.handle().clone();
+            let state_for_deeplink = app_state.clone();
+            
+            #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                
+                app.handle().plugin(
+                    tauri_plugin_deep_link::Builder::new()
+                        .with_handler(move |url| {
+                            tracing::info!("Deep link received: {}", url);
+                            
+                            let handle = app_handle.clone();
+                            let state = state_for_deeplink.clone();
+                            
+                            tauri::async_runtime::spawn(async move {
+                                if let Err(e) = handle_deep_link(url, handle, state).await {
+                                    tracing::error!("Deep link handling failed: {}", e);
+                                }
+                            });
+                        })
+                        .build(),
+                )?;
+            }
 
             // Start clipboard monitor
             let handle = app.handle().clone();
@@ -232,11 +253,71 @@ fn main() {
                         // Get the download from database and start it
                         let state_clone = state_for_scheduler.clone();
                         tokio::spawn(async move {
-                            // TODO: Implement actual download restart logic
-                            // This would typically involve:
-                            // 1. Loading the download from database
-                            // 2. Calling add_download or resume_download
-                            tracing::info!("Starting scheduled download: {}", task.download_id);
+                            // Load the download from database
+                            match state_clone.db.get_download(task.download_id).await {
+                                Ok(Some(download_task)) => {
+                                    tracing::info!("Loaded scheduled download: {}", download_task.id);
+                                    
+                                    // Check if download is already active
+                                    let active_downloads = state_clone.active_downloads.read().await;
+                                    if active_downloads.contains_key(&download_task.id) {
+                                        tracing::warn!("Download {} is already active, skipping", download_task.id);
+                                        return;
+                                    }
+                                    drop(active_downloads);
+                                    
+                                    // Resume or restart the download based on status
+                                    match download_task.status {
+                                        core::download_task::DownloadStatus::Paused => {
+                                            // Resume paused download
+                                            if let Err(e) = commands::download_commands::resume_download_internal(
+                                                download_task.id,
+                                                state_clone.clone()
+                                            ).await {
+                                                tracing::error!("Failed to resume scheduled download {}: {}", download_task.id, e);
+                                            } else {
+                                                tracing::info!("Successfully resumed scheduled download: {}", download_task.id);
+                                            }
+                                        },
+                                        core::download_task::DownloadStatus::Failed | 
+                                        core::download_task::DownloadStatus::Cancelled => {
+                                            // Retry failed/cancelled downloads
+                                            if let Err(e) = commands::download_commands::retry_download_internal(
+                                                download_task.id,
+                                                state_clone.clone()
+                                            ).await {
+                                                tracing::error!("Failed to retry scheduled download {}: {}", download_task.id, e);
+                                            } else {
+                                                tracing::info!("Successfully retried scheduled download: {}", download_task.id);
+                                            }
+                                        },
+                                        core::download_task::DownloadStatus::Queued => {
+                                            // Start queued download
+                                            if let Err(e) = commands::download_commands::add_download_internal(
+                                                download_task.url.clone(),
+                                                Some(download_task.save_path.to_string_lossy().to_string()),
+                                                Some(download_task.file_name.clone()),
+                                                None,
+                                                state_clone.clone()
+                                            ).await {
+                                                tracing::error!("Failed to start scheduled download {}: {}", download_task.id, e);
+                                            } else {
+                                                tracing::info!("Successfully started scheduled download: {}", download_task.id);
+                                            }
+                                        },
+                                        _ => {
+                                            tracing::info!("Download {} is in state {:?}, no action needed", 
+                                                download_task.id, download_task.status);
+                                        }
+                                    }
+                                },
+                                Ok(None) => {
+                                    tracing::warn!("Scheduled download {} not found in database", task.download_id);
+                                },
+                                Err(e) => {
+                                    tracing::error!("Failed to load scheduled download {}: {}", task.download_id, e);
+                                }
+                            }
                         });
                     }
                 }
@@ -280,6 +361,9 @@ fn main() {
             commands::history_commands::get_download_history,
             commands::history_commands::get_history_stats,
             commands::history_commands::clear_download_history,
+            commands::history_commands::delete_download_from_history,
+            commands::history_commands::delete_downloads_bulk,
+            commands::history_commands::clear_old_history,
             commands::history_commands::export_history,
             // Settings commands
             commands::settings_commands::get_settings,
@@ -347,6 +431,25 @@ fn main() {
             commands::torrent_commands::pause_torrent,
             commands::torrent_commands::resume_torrent,
             commands::torrent_commands::remove_torrent,
+            commands::torrent_commands::list_torrents,
+            commands::torrent_commands::get_torrent_info,
+            commands::torrent_commands::set_torrent_priority,
+            commands::torrent_commands::get_torrent_priority,
+            commands::torrent_commands::set_torrent_bandwidth_limit,
+            commands::torrent_commands::get_torrent_bandwidth_limit,
+            commands::torrent_commands::set_torrent_schedule,
+            commands::torrent_commands::get_torrent_schedule,
+            commands::torrent_commands::is_torrent_scheduled_active,
+            commands::torrent_commands::add_torrent_tag,
+            commands::torrent_commands::remove_torrent_tag,
+            commands::torrent_commands::set_torrent_category,
+            commands::torrent_commands::get_torrent_metadata,
+            commands::torrent_commands::add_web_seed,
+            commands::torrent_commands::set_encryption_config,
+            commands::torrent_commands::add_blocked_ip,
+            commands::torrent_commands::remove_blocked_ip,
+            commands::torrent_commands::get_advanced_config,
+            commands::torrent_commands::set_advanced_config,
             // Service commands
             services::clipboard_service::set_clipboard_monitoring,
             services::notification_service::set_notifications_enabled,
