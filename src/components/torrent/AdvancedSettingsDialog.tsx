@@ -178,7 +178,7 @@ export const AdvancedSettingsDialog: React.FC<AdvancedSettingsDialogProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Advanced Torrent Settings" size="large">
+    <Modal isOpen={isOpen} onClose={onClose} title="Advanced Torrent Settings" size="xl">
       {loading ? (
         <div className="flex items-center justify-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
