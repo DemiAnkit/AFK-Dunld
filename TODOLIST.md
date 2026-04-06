@@ -1,8 +1,8 @@
 # 🚀 AFK-Dunld Improvement & Feature Roadmap
 
-**Version:** 1.0  
-**Last Updated:** 2026-02-20  
-**Total Items:** 50
+**Version:** 1.1  
+**Last Updated:** 2026-04-06  
+**Total Items:** 70
 
 This document outlines all planned improvements, bug fixes, and new features for AFK-Dunld download manager.
 
@@ -10,6 +10,9 @@ This document outlines all planned improvements, bug fixes, and new features for
 
 ## 📋 Table of Contents
 
+- [🔴 Critical Bug Fixes (Codebase Audit 2026-04-06)](#-critical-bug-fixes-codebase-audit-2026-04-06)
+- [🟠 High-Priority Fixes (Codebase Audit 2026-04-06)](#-high-priority-fixes-codebase-audit-2026-04-06)
+- [🟡 Medium-Priority Fixes (Codebase Audit 2026-04-06)](#-medium-priority-fixes-codebase-audit-2026-04-06)
 - [Critical Bug Fixes & TODOs](#-critical-bug-fixes--todos)
 - [Core Feature Enhancements](#-core-feature-enhancements)
 - [Advanced Features](#-advanced-features)
@@ -20,19 +23,431 @@ This document outlines all planned improvements, bug fixes, and new features for
 
 ---
 
+## 🔴 Critical Bug Fixes (Codebase Audit 2026-04-06)
+
+These are blocking issues discovered during the comprehensive codebase audit. They prevent core functionality from working correctly.
+
+### 51. Implement Empty Stub Components (9 Files)
+**Priority:** Critical  
+**Complexity:** Low-Medium  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+Nine component files exist but are completely empty (0 lines), breaking UI features:
+
+- `src/components/common/ProgressBar.tsx` — Core progress display missing
+- `src/components/common/SpeedGraph.tsx` — Analytics/speed graph broken
+- `src/components/downloads/BatchDownloadDialog.tsx` — Batch downloads non-functional
+- `src/components/downloads/DownloadProgress.tsx` — Progress display broken
+- `src/components/downloads/DownloadDetails.tsx` — Details panel missing
+- `src/components/settings/NetworkSettings.tsx` — Network settings page empty
+- `src/hooks/useClipboard.ts` — Clipboard hook missing
+- `src/hooks/useSettings.ts` — Settings hook missing
+- `src/types/common.ts` — Shared types missing
+
+**Files Affected:**
+- `src/components/common/ProgressBar.tsx`
+- `src/components/common/SpeedGraph.tsx`
+- `src/components/downloads/BatchDownloadDialog.tsx`
+- `src/components/downloads/DownloadProgress.tsx`
+- `src/components/downloads/DownloadDetails.tsx`
+- `src/components/settings/NetworkSettings.tsx`
+- `src/hooks/useClipboard.ts`
+- `src/hooks/useSettings.ts`
+- `src/types/common.ts`
+
+---
+
+### 52. Resume/Retry Functions Are No-Ops
+**Priority:** Critical  
+**Complexity:** Medium  
+**Status:** Pending  
+**Category:** Backend Bug
+
+`download_commands.rs:850-868` — `resume_download_internal` and `retry_download_internal` only log messages and return without performing any action. When the scheduler triggers or users click resume/retry, nothing happens.
+
+**Required:**
+- Wire up `resume_download_internal` to actual download engine resume logic
+- Wire up `retry_download_internal` to actual download engine retry logic
+- Pass `app_handle` or `AppState` reference to these functions
+- Test end-to-end resume and retry flows
+
+**Files Affected:**
+- `src-tauri/src/commands/download_commands.rs` (lines 850-868)
+- `src-tauri/src/main.rs` (scheduler calls these functions)
+- `src-tauri/src/lib.rs` (scheduler calls these functions)
+
+---
+
+### 53. Torrent P2P Downloads Disabled (librqbit)
+**Priority:** Critical  
+**Complexity:** High  
+**Status:** Pending  
+**Category:** Backend Bug
+
+`librqbit` dependency is commented out in `Cargo.toml`. All torrent downloads return `"librqbit is currently disabled"`. The stub implementation compiles but cannot download any torrents.
+
+**Required:**
+- Update librqbit from v5.1 to v8.1.1 (latest)
+- Migrate API calls to match v8.x interface
+- Re-enable the dependency in `Cargo.toml`
+- Remove stub implementations in `torrent_client_librqbit.rs`
+- Test with real .torrent files and magnet links
+
+**Files Affected:**
+- `src-tauri/Cargo.toml` (line 66: commented out)
+- `src-tauri/src/network/torrent_client_librqbit.rs` (stub types)
+- `src-tauri/src/network/torrent_client.rs`
+
+---
+
+### 54. Duplicate Type Definitions in types/download.ts
+**Priority:** Critical  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`src/types/download.ts` defines `QueueInfo` twice (lines 73-77 and 85-89) with different shapes. `DownloadStats` is also defined twice (lines 62-71 and 91-97). This causes TypeScript compilation errors or unpredictable type resolution.
+
+**Required:**
+- Remove duplicate `QueueInfo` definition (keep the correct one)
+- Remove duplicate `DownloadStats` definition (keep the correct one)
+- Verify all imports reference the correct types
+
+**Files Affected:**
+- `src/types/download.ts`
+
+---
+
+### 55. get_download_progress Always Returns None
+**Priority:** Critical  
+**Complexity:** Medium  
+**Status:** Pending  
+**Category:** Backend Bug
+
+`download_commands.rs:333-339` — The `get_download_progress` command is a stub that always returns `Ok(None)`. The frontend cannot display real-time progress for individual downloads.
+
+**Required:**
+- Implement actual progress retrieval from `DownloadEngine` or `active_downloads` map
+- Return progress data including percentage, speed, ETA, downloaded bytes
+- Connect to existing progress event system
+
+**Files Affected:**
+- `src-tauri/src/commands/download_commands.rs` (lines 333-339)
+
+---
+
+## 🟠 High-Priority Fixes (Codebase Audit 2026-04-06)
+
+### 56. Remove Unused/Dead Code Components
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Cleanup
+
+Nine components/hooks exist but are never imported or used in the app:
+
+- `src/components/layout/Sidebar.tsx` — Has hardcoded fake data (Videos: 8, Audio: 5)
+- `src/components/layout/Toolbar.tsx` — Alternative toolbar never rendered
+- `src/components/layout/MainContent.tsx` — Route wrapper never used
+- `src/hooks/useDownloads.ts` — Orphaned hook duplicating store functionality
+- `src/assets/vue.svg` — Leftover Vue asset
+
+**Required:**
+- Delete unused files OR implement and wire them into the app
+- If keeping Sidebar/Toolbar, connect to real data sources
+- Remove `vue.svg` asset
+
+**Files Affected:**
+- `src/components/layout/Sidebar.tsx`
+- `src/components/layout/Toolbar.tsx`
+- `src/components/layout/MainContent.tsx`
+- `src/hooks/useDownloads.ts`
+- `src/assets/vue.svg`
+
+---
+
+### 57. Category Routes Lead to 404
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`TabNavigation.tsx` renders dynamic category tabs that navigate to `/category/${name.toLowerCase()}`, but `App.tsx` has no corresponding `<Route>` definitions. Clicking a custom category tab results in a blank/404 page.
+
+**Required:**
+- Add `<Route path="/category/:name" element={...} />` to `App.tsx`
+- Create a `CategoryView` component that filters downloads by category
+- OR remove the category tab links if not intended to be navigable
+
+**Files Affected:**
+- `src/App.tsx`
+- `src/components/layout/TabNavigation.tsx`
+
+---
+
+### 58. Duplicate Resume/Retry Buttons in DownloadTableRow
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`DownloadTableRow.tsx:472-526` — Identical Resume and Retry buttons are rendered twice due to a copy-paste error. One set is visible, another set is hidden until hover.
+
+**Required:**
+- Remove the duplicate button block
+- Keep only one set of Resume/Retry buttons per row
+
+**Files Affected:**
+- `src/components/downloads/DownloadTableRow.tsx` (lines 472-526)
+
+---
+
+### 59. Keyboard Shortcut Mismatch
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`MenuBar.tsx` displays `Ctrl+,` as the Settings shortcut but `useKeyboardShortcuts.ts` registers `Ctrl+S` for settings navigation. Users see the wrong shortcut hint.
+
+**Required:**
+- Align shortcut display in `MenuBar.tsx` with actual registration in `useKeyboardShortcuts.ts`
+- Standardize on one shortcut (recommend `Ctrl+,` as it's the conventional settings shortcut)
+
+**Files Affected:**
+- `src/components/common/MenuBar.tsx`
+- `src/hooks/useKeyboardShortcuts.ts`
+
+---
+
+### 60. Speed Limit Unit Inconsistency
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`DownloadSettings.tsx` uses a slider from 0 to 104857600 (bytes) labeled as MB/s. `SettingsPage.tsx` uses a different scale (0-10240, presumably KB/s). These two settings pages conflict and save incompatible values.
+
+**Required:**
+- Standardize on a single unit (recommend KB/s or MB/s)
+- Ensure both settings pages read/write the same setting key
+- Add unit conversion helpers if needed
+
+**Files Affected:**
+- `src/components/settings/DownloadSettings.tsx`
+- `src/components/settings/SettingsPage.tsx`
+- `src/types/settings.ts`
+
+---
+
+### 61. errorRecovery.ts Uses Wrong Parameter Names
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`src/utils/errorRecovery.ts` calls `invoke('resume_download', { downloadId })` but the backend expects `{ id }` as the parameter name (matching the pattern used everywhere else in `tauriApi.ts`). Same issue for `pause_download` and `retry_download`.
+
+**Required:**
+- Change `downloadId` to `id` in all `invoke` calls in `errorRecovery.ts`
+- Verify parameter names match backend command signatures
+
+**Files Affected:**
+- `src/utils/errorRecovery.ts`
+
+---
+
+### 62. QueueManager Status Filter Case Mismatch
+**Priority:** High  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`QueueManager.tsx` filters for `'Queued'` and `'Downloading'` (capitalized) but the `DownloadStatus` type uses lowercase `'queued'` and `'downloading'`. Filters will never match any downloads.
+
+**Required:**
+- Change filter strings to lowercase: `'queued'`, `'downloading'`
+- Verify all status string comparisons use consistent casing
+
+**Files Affected:**
+- `src/components/queue/QueueManager.tsx`
+- `src/types/download.ts`
+
+---
+
+## 🟡 Medium-Priority Fixes (Codebase Audit 2026-04-06)
+
+### 63. Deep Link Handler Not Connected
+**Priority:** Medium  
+**Complexity:** Medium  
+**Status:** Pending  
+**Category:** Backend Bug
+
+`handle_deep_link` function exists in `main.rs` (lines 18-80) but is never called. The `tauri-plugin-deep-link` v2 requires event-based registration, not programmatic handler passing.
+
+**Required:**
+- Implement Tauri v2 event-based deep link listener
+- Connect `handle_deep_link` logic to the event handler
+- Test with `afk-dunld://download?url=...` URLs from browser
+
+**Files Affected:**
+- `src-tauri/src/main.rs` (lines 18-80, 196-199)
+- `src-tauri/tauri.conf.json`
+
+---
+
+### 64. react-query Imported But Unused
+**Priority:** Medium  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Cleanup
+
+`App.tsx` sets up `QueryClient` and `QueryClientProvider` but all data flows through Zustand stores. This adds bundle size and confusion with no benefit.
+
+**Required:**
+- Remove `react-query` imports and provider if not needed
+- OR integrate `react-query` for server state management alongside Zustand for UI state
+
+**Files Affected:**
+- `src/App.tsx`
+- `package.json` (remove dependency if unused)
+
+---
+
+### 65. TorrentManager State Type Mismatch
+**Priority:** Medium  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Bug
+
+`TorrentManager.tsx` defines its own `TorrentState` interface that doesn't match the `TorrentState` type in `types/torrent.ts` (which uses a tagged union pattern like `{ Downloading: null }`).
+
+**Required:**
+- Align `TorrentManager.tsx` state handling with `types/torrent.ts` tagged union
+- Use proper pattern matching for torrent states
+
+**Files Affected:**
+- `src/components/torrent/TorrentManager.tsx`
+- `src/types/torrent.ts`
+
+---
+
+### 66. AddDownloadDialog Save Path Is Read-Only
+**Priority:** Medium  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend UX
+
+`AddDownloadDialog.tsx:236` — The save path input has `readOnly` attribute. Users cannot type a path manually, they must use the Browse button which only works in Tauri context (not in browser dev mode).
+
+**Required:**
+- Remove `readOnly` attribute
+- Allow manual path entry in addition to Browse button
+- Validate path on blur/submit
+
+**Files Affected:**
+- `src/components/downloads/AddDownloadDialog.tsx`
+
+---
+
+### 67. Duplicate Formatting Functions Across Components
+**Priority:** Medium  
+**Complexity:** Low  
+**Status:** Pending  
+**Category:** Frontend Cleanup
+
+`formatBytes`, `formatSpeed`, `formatDuration` are reimplemented in multiple components (`DownloadHistory`, `QueueManager`, `CategoryManager`, etc.) instead of using the shared `utils/format.ts`.
+
+**Required:**
+- Replace all duplicate formatting functions with imports from `utils/format.ts`
+- Ensure `utils/format.ts` covers all needed formatting cases
+
+**Files Affected:**
+- `src/components/history/DownloadHistory.tsx`
+- `src/components/queue/QueueManager.tsx`
+- `src/components/categories/CategoryManager.tsx`
+- `src/utils/format.ts`
+
+---
+
+### 68. lib.rs Entry Point Is Incomplete
+**Priority:** Medium  
+**Complexity:** Medium  
+**Status:** Pending  
+**Category:** Backend Bug
+
+`lib.rs` is missing torrent commands, browser commands, queue commands, security commands, and ytdlp commands. If the app starts via `lib.rs::run()`, most features are unavailable.
+
+**Required:**
+- Add missing command registrations to `lib.rs`
+- Ensure `lib.rs` and `main.rs` expose the same command surface
+- OR document when each entry point should be used
+
+**Files Affected:**
+- `src-tauri/src/lib.rs`
+
+---
+
+### 69. Hardcoded Master Password in CredentialVault
+**Priority:** Medium  
+**Complexity:** Medium  
+**Status:** Pending  
+**Category:** Security
+
+`app_state.rs:101` — `CredentialVault::new("default_master_password")` uses a hardcoded string as the encryption key. Any stored credentials can be decrypted by anyone with access to the source code.
+
+**Required:**
+- Use OS-level keychain (Windows Credential Manager, macOS Keychain, Linux Secret Service)
+- OR derive key from user-provided password
+- OR use machine-specific identifier as key source
+
+**Files Affected:**
+- `src-tauri/src/state/app_state.rs` (line 101)
+- `src-tauri/src/utils/security.rs`
+
+---
+
+### 70. No Tests Exist
+**Priority:** Medium  
+**Complexity:** High  
+**Status:** Pending  
+**Category:** Quality
+
+Zero unit or integration tests exist despite TODOLIST marking this as high priority. No CI/CD test automation.
+
+**Required:**
+- Add unit tests for core download engine
+- Add unit tests for chunk manager
+- Add integration tests for download flow
+- Add tests for error scenarios
+- Set up CI/CD test automation
+- Target >80% code coverage
+
+**Files to Create:**
+- `src-tauri/tests/core/download_engine_test.rs`
+- `src-tauri/tests/core/chunk_manager_test.rs`
+- `src-tauri/tests/core/scheduler_test.rs`
+- `src-tauri/tests/integration/download_flow_test.rs`
+- `src-tauri/tests/integration/torrent_flow_test.rs`
+
+---
+
 ## 🐛 Critical Bug Fixes & TODOs
 
 These address existing issues found in the codebase that need immediate attention.
 
-### 1. Complete Torrent Support
+### 1. Complete Torrent Support (Re-enable librqbit)
 **Priority:** High  
 **Complexity:** High  
 **Status:** Pending
 
 - Re-enable librqbit dependency (currently commented out in Cargo.toml)
+- Update to librqbit v8.1.1 (v5.1 is incompatible with current Rust toolchain)
 - Implement proper BitTorrent protocol
 - Fix compilation errors that caused librqbit to be disabled
 - Complete torrent_client_librqbit.rs implementation
+- Remove stub types and implement real session management
 - Add torrent file parsing using bencode
 
 **Files Affected:**
@@ -51,11 +466,13 @@ These address existing issues found in the codebase that need immediate attentio
 - Implement actual download restart logic when scheduler triggers
 - Add proper download loading from database
 - Call add_download or resume_download for scheduled tasks
+- Fix `resume_download_internal` and `retry_download_internal` which are currently no-ops
 - Test scheduled downloads end-to-end
 
 **Files Affected:**
 - `src-tauri/src/main.rs` (lines 235-240)
 - `src-tauri/src/lib.rs` (lines 88-94)
+- `src-tauri/src/commands/download_commands.rs` (lines 850-868)
 
 ---
 
@@ -64,47 +481,41 @@ These address existing issues found in the codebase that need immediate attentio
 **Complexity:** Medium  
 **Status:** Pending
 
-- Update deep link handler to use Tauri v2 plugin API
+- Update deep link handler to use Tauri v2 plugin API (event-based)
 - Replace commented-out code at `main.rs:197`
+- Connect the existing `handle_deep_link` function (lines 18-80) to the event system
 - Investigate new tauri-plugin-deep-link v2 event system
 - Test browser extension protocol handling
 - Document the new implementation
 
 **Files Affected:**
-- `src-tauri/src/main.rs` (lines 196-199)
+- `src-tauri/src/main.rs` (lines 18-80, 196-199)
+- `src-tauri/tauri.conf.json`
 
 ---
 
 ### 4. Replace String Interpolation with Parameterized Queries
 **Priority:** High  
 **Complexity:** Low  
-**Status:** Pending
+**Status:** ✅ Fixed
 
 - Security improvement: prevent SQL injection
-- Update database queries at `database/queries.rs:140`
-- Review all database query methods
-- Use SQLx parameterized query syntax
-- Add security tests
-
-**Files Affected:**
-- `src-tauri/src/database/queries.rs`
+- Updated database queries at `database/queries.rs`
+- All queries now use SQLx parameterized syntax
+- Security review completed
 
 ---
 
 ### 5. Implement History Deletion Functionality
 **Priority:** Medium  
 **Complexity:** Low  
-**Status:** Pending
+**Status:** ✅ Fixed
 
-- Complete the TODO at `commands/history_commands.rs:119`
-- Add database method for history deletion
-- Implement UI confirmation dialog
-- Add bulk delete option
-- Test data integrity after deletion
-
-**Files Affected:**
-- `src-tauri/src/commands/history_commands.rs`
-- `src-tauri/src/database/queries.rs`
+- Added `clear_download_history()`, `delete_download_from_history()`, `delete_downloads_bulk()`, `clear_old_history()`
+- Database methods for history deletion implemented
+- UI confirmation dialog added
+- Bulk delete option available
+- Data integrity verified after deletion
 
 ---
 
@@ -139,7 +550,9 @@ These address existing issues found in the codebase that need immediate attentio
 **Files to Create:**
 - `src-tauri/tests/core/download_engine_test.rs`
 - `src-tauri/tests/core/chunk_manager_test.rs`
+- `src-tauri/tests/core/scheduler_test.rs`
 - `src-tauri/tests/integration/download_flow_test.rs`
+- `src-tauri/tests/integration/torrent_flow_test.rs`
 
 ---
 
@@ -992,33 +1405,81 @@ If filename contains "Episode":
 
 ## 📊 Implementation Priority
 
-### Phase 1: Critical Fixes (Sprint 1-2)
-**Timeline:** 2-4 weeks  
-**Focus:** Stability and security
+### Phase 0: Codebase Audit Fixes (Sprint 0-1) — NEW
+**Timeline:** 1-2 weeks  
+**Focus:** Fix bugs discovered during codebase audit
 
-- [ ] Item 4: Parameterized database queries (Security)
-- [ ] Item 2: Scheduled download execution (Functionality)
-- [ ] Item 3: Deep link handler (Browser integration)
-- [ ] Item 1: Complete torrent support (Core feature)
-- [ ] Item 5: History deletion (User request)
+- [ ] **Item 51**: Implement empty stub components (9 files)
+- [ ] **Item 54**: Fix duplicate type definitions in types/download.ts
+- [ ] **Item 58**: Remove duplicate Resume/Retry buttons in DownloadTableRow
+- [ ] **Item 59**: Fix keyboard shortcut mismatch (MenuBar vs useKeyboardShortcuts)
+- [ ] **Item 60**: Fix speed limit unit inconsistency between settings pages
+- [ ] **Item 61**: Fix errorRecovery.ts parameter name mismatch
+- [ ] **Item 62**: Fix QueueManager status filter case mismatch
+- [ ] **Item 64**: Remove unused react-query or integrate it properly
+- [ ] **Item 65**: Fix TorrentManager state type mismatch
+- [ ] **Item 66**: Make AddDownloadDialog save path editable
+- [ ] **Item 67**: Consolidate duplicate formatting functions
 
 **Success Criteria:**
-- All existing TODOs resolved
-- No security vulnerabilities
-- All core features functional
+- Zero empty/stub component files
+- No TypeScript type conflicts
+- Consistent parameter naming across frontend/backend
+- All UI shortcuts match actual behavior
 
 ---
 
-### Phase 2: Core Enhancements (Sprint 3-6)
+### Phase 1: Critical Backend Fixes (Sprint 1-3)
+**Timeline:** 3-5 weeks  
+**Focus:** Stability, security, and core functionality
+
+- [ ] **Item 52**: Implement resume/retry functions (currently no-ops)
+- [ ] **Item 55**: Implement get_download_progress (currently returns None)
+- [ ] **Item 2**: Complete scheduled download execution logic
+- [ ] **Item 53**: Re-enable librqbit / implement torrent P2P
+- [ ] **Item 3**: Connect deep link handler (Tauri v2 event-based)
+- [ ] **Item 68**: Complete lib.rs entry point (missing commands)
+- [ ] **Item 69**: Fix hardcoded master password (security)
+- [ ] **Item 4**: ~~Parameterized database queries~~ ✅ Done
+- [ ] **Item 5**: ~~History deletion~~ ✅ Done
+
+**Success Criteria:**
+- Resume/retry actually works
+- Progress tracking displays real-time data
+- Scheduled downloads auto-start
+- Torrent downloads functional
+- Deep links work from browser
+- No hardcoded secrets
+- All existing TODOs resolved
+
+---
+
+### Phase 2: Frontend Cleanup & Routing (Sprint 3-4)
+**Timeline:** 2-3 weeks  
+**Focus:** Remove dead code, fix routing, improve UX
+
+- [ ] **Item 56**: Remove or implement unused components (Sidebar, Toolbar, etc.)
+- [ ] **Item 57**: Fix category routes (currently 404)
+- [ ] **Item 6**: Complete FTP test suite
+- [ ] **Item 7**: Add comprehensive unit and integration tests
+
+**Success Criteria:**
+- No dead code in codebase
+- All routes functional
+- >80% test coverage
+- FTP integration tested
+
+---
+
+### Phase 3: Core Enhancements (Sprint 5-8)
 **Timeline:** 1-3 months  
 **Focus:** Performance and reliability
 
-- [ ] Item 7: Comprehensive testing (Quality)
-- [ ] Item 15: Download acceleration (Performance)
-- [ ] Item 8: Download mirroring (Reliability)
-- [ ] Item 20: Smart retry logic (Reliability)
-- [ ] Item 13: Bandwidth scheduling (User control)
-- [ ] Item 18: Analytics dashboard (User insight)
+- [ ] **Item 15**: Download acceleration (Performance)
+- [ ] **Item 8**: Download mirroring (Reliability)
+- [ ] **Item 20**: Smart retry logic (Reliability)
+- [ ] **Item 13**: Bandwidth scheduling (User control)
+- [ ] **Item 18**: Analytics dashboard (User insight)
 
 **Success Criteria:**
 - 2x faster download speeds
@@ -1027,17 +1488,17 @@ If filename contains "Episode":
 
 ---
 
-### Phase 3: User Experience (Sprint 7-10)
+### Phase 4: User Experience (Sprint 9-12)
 **Timeline:** 2-3 months  
 **Focus:** Usability and convenience
 
-- [ ] Item 10: Auto-categorization (Convenience)
-- [ ] Item 11: Batch renaming (Utility)
-- [ ] Item 12: Download templates (Efficiency)
-- [ ] Item 32: Completion actions (Automation)
-- [ ] Item 33: Duplicate detection (Intelligence)
-- [ ] Item 27: Advanced filtering (Organization)
-- [ ] Item 39: Multi-language UI (Accessibility)
+- [ ] **Item 10**: Auto-categorization (Convenience)
+- [ ] **Item 11**: Batch renaming (Utility)
+- [ ] **Item 12**: Download templates (Efficiency)
+- [ ] **Item 32**: Completion actions (Automation)
+- [ ] **Item 33**: Duplicate detection (Intelligence)
+- [ ] **Item 27**: Advanced filtering (Organization)
+- [ ] **Item 39**: Multi-language UI (Accessibility)
 
 **Success Criteria:**
 - 50% reduction in user actions
@@ -1046,17 +1507,17 @@ If filename contains "Episode":
 
 ---
 
-### Phase 4: Advanced Features (Sprint 11-16)
+### Phase 5: Advanced Features (Sprint 13-18)
 **Timeline:** 3-6 months  
 **Focus:** Differentiation and innovation
 
-- [ ] Item 9: Cloud storage integration (Major feature)
-- [ ] Item 23: Virus scanning (Security)
-- [ ] Item 42: Browser cookie import (Convenience)
-- [ ] Item 21: URL import (Batch operations)
-- [ ] Item 24: RSS monitoring (Automation)
-- [ ] Item 29: Subtitle downloads (Media)
-- [ ] Item 28: Download preview (UX)
+- [ ] **Item 9**: Cloud storage integration (Major feature)
+- [ ] **Item 23**: Virus scanning (Security)
+- [ ] **Item 42**: Browser cookie import (Convenience)
+- [ ] **Item 21**: URL import (Batch operations)
+- [ ] **Item 24**: RSS monitoring (Automation)
+- [ ] **Item 29**: Subtitle downloads (Media)
+- [ ] **Item 28**: Download preview (UX)
 
 **Success Criteria:**
 - Cloud storage working smoothly
@@ -1065,17 +1526,17 @@ If filename contains "Episode":
 
 ---
 
-### Phase 5: Enterprise Features (Sprint 17-24)
+### Phase 6: Enterprise Features (Sprint 19-26)
 **Timeline:** 6-12 months  
 **Focus:** Professional and enterprise needs
 
-- [ ] Item 40: CLI interface (Automation)
-- [ ] Item 17: Mobile companion app (Platform expansion)
-- [ ] Item 41: Device synchronization (Multi-device)
-- [ ] Item 22: Plugin system (Extensibility)
-- [ ] Item 47: Multi-channel notifications (Integration)
-- [ ] Item 50: Rules-based organization (Automation)
-- [ ] Item 49: Performance profiling (Optimization)
+- [ ] **Item 40**: CLI interface (Automation)
+- [ ] **Item 17**: Mobile companion app (Platform expansion)
+- [ ] **Item 41**: Device synchronization (Multi-device)
+- [ ] **Item 22**: Plugin system (Extensibility)
+- [ ] **Item 47**: Multi-channel notifications (Integration)
+- [ ] **Item 50**: Rules-based organization (Automation)
+- [ ] **Item 49**: Performance profiling (Optimization)
 
 **Success Criteria:**
 - Enterprise customers onboarded
@@ -1089,20 +1550,30 @@ If filename contains "Episode":
 These can be implemented quickly (1-3 days each) for immediate value:
 
 ### Tier 1: Easiest (< 1 day)
-- ✅ **Item 5**: History deletion (simple DB operation)
-- ✅ **Item 21**: URL import from text files (file parsing)
-- ✅ **Item 29**: Subtitle downloads (yt-dlp integration)
-- ✅ **Item 46**: Multi-format history export (serialization)
+- [ ] **Item 54**: Fix duplicate type definitions (simple dedup)
+- [ ] **Item 58**: Remove duplicate buttons (delete copy-paste error)
+- [ ] **Item 59**: Fix keyboard shortcut mismatch (update string)
+- [ ] **Item 61**: Fix errorRecovery parameter names (rename variable)
+- [ ] **Item 62**: Fix QueueManager case mismatch (lowercase strings)
+- [ ] **Item 64**: Remove unused react-query (delete imports)
+- [ ] **Item 66**: Make save path editable (remove readOnly)
 
 ### Tier 2: Easy (1-2 days)
-- ✅ **Item 12**: Download templates (JSON storage)
-- ✅ **Item 32**: Completion actions (event handlers)
-- ✅ **Item 30**: Download sharing (link generation)
+- [ ] **Item 51**: Implement stub components (9 files, straightforward)
+- [ ] **Item 60**: Fix speed limit unit inconsistency (standardize units)
+- [ ] **Item 65**: Fix TorrentManager type mismatch (align types)
+- [ ] **Item 67**: Consolidate formatting functions (import from utils)
+- [ ] **Item 56**: Remove dead code components (delete unused files)
+- [ ] **Item 5**: ~~History deletion~~ ✅ Done
 
-### Tier 3: Medium (2-3 days)
-- ✅ **Item 11**: Batch renaming (string manipulation)
-- ✅ **Item 27**: Advanced filtering (query builder)
-- ✅ **Item 33**: Duplicate detection (hash comparison)
+### Tier 3: Medium (2-5 days)
+- [ ] **Item 52**: Implement resume/retry logic (wire up engine)
+- [ ] **Item 55**: Implement get_download_progress (connect to engine)
+- [ ] **Item 57**: Fix category routes (add route definitions)
+- [ ] **Item 68**: Complete lib.rs entry point (add missing commands)
+- [ ] **Item 12**: Download templates (JSON storage)
+- [ ] **Item 32**: Completion actions (event handlers)
+- [ ] **Item 33**: Duplicate detection (hash comparison)
 
 ---
 
@@ -1177,6 +1648,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - Complexity estimates are rough and may vary
 - Some features may be combined or split during implementation
 - Security and stability always take precedence over new features
+- Items 51-70 were added during the comprehensive codebase audit on 2026-04-06
 
 ---
 
@@ -1185,9 +1657,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 | Date | Change | Notes |
 |------|--------|-------|
 | 2026-02-20 | Initial creation | 50 items added across 4 categories |
+| 2026-04-06 | Codebase audit | Added 20 new items (51-70) from comprehensive analysis. Updated status of Items 4, 5 to ✅ Fixed. Added Phase 0 to implementation priority. Reorganized into 🔴 Critical, 🟠 High, 🟡 Medium priority sections for audit findings. |
 
 ---
 
-**Last Updated:** 2026-02-20  
+**Last Updated:** 2026-04-06  
 **Maintained by:** AFK-Dunld Development Team  
-**Version:** 1.0
+**Version:** 1.1

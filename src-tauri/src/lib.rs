@@ -35,8 +35,12 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {
-            tracing::info!("Another instance tried to start");
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tracing::info!("Another instance tried to start, focusing existing window");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
         }))
         .setup(|app| {
             tracing::info!("Setting up application...");

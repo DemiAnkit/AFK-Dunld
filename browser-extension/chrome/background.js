@@ -2,11 +2,13 @@
 // Handles download interception and communication with desktop app
 
 const NATIVE_APP_NAME = 'com.ankit.afkdunld';
-const DOWNLOAD_THRESHOLD_MB = 1; // Downloads larger than this will be intercepted
+const DOWNLOAD_THRESHOLD_MB = 1;
+const PROTOCOL_NAME = 'afk-dunld';
 
 // State management
 let isAppConnected = false;
 let activeDownloads = new Map();
+let nativeMessagingPort = null;
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
@@ -37,7 +39,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       sendToDesktopApp(url, info.pageUrl, tab.title);
     }
   } else if (info.menuItemId === 'download-selection-with-afkdunld') {
-    // Try to extract URL from selected text
     const selectedText = info.selectionText.trim();
     if (selectedText.match(/^https?:\/\//)) {
       sendToDesktopApp(selectedText, info.pageUrl, tab.title);
@@ -47,6 +48,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Intercept downloads
 chrome.downloads.onCreated.addListener(async (downloadItem) => {
+  // Skip if URL is our own protocol
+  if (downloadItem.url.startsWith(PROTOCOL_NAME + '://')) {
+    return;
+  }
+
   // Get user preferences
   const settings = await chrome.storage.sync.get({
     interceptDownloads: true,
@@ -58,9 +64,9 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
   }
   
   // Check if file size exceeds threshold
-  const sizeMB = downloadItem.fileSize / (1024 * 1024);
+  const sizeMB = (downloadItem.fileSize || 0) / (1024 * 1024);
   if (downloadItem.fileSize > 0 && sizeMB < settings.sizeThreshold) {
-    return; // Let browser handle small files
+    return;
   }
   
   // Cancel the browser download
@@ -82,12 +88,12 @@ chrome.downloads.onCreated.addListener(async (downloadItem) => {
 
 // Send download to desktop app
 function sendToDesktopApp(url, referrer, filename) {
-  // Try native messaging first
+  // Always try custom protocol first (most reliable)
+  sendViaCustomProtocol(url, referrer, filename);
+  
+  // Also try native messaging if connected
   if (isAppConnected) {
     sendViaNativeMessaging(url, referrer, filename);
-  } else {
-    // Fallback: Try to open custom protocol
-    sendViaCustomProtocol(url, referrer, filename);
   }
   
   // Store in active downloads
@@ -103,7 +109,32 @@ function sendToDesktopApp(url, referrer, filename) {
   updateBadge();
 }
 
-// Send via native messaging
+// Send via custom protocol (PRIMARY method)
+function sendViaCustomProtocol(url, referrer, filename) {
+  const params = new URLSearchParams();
+  params.set('url', url);
+  if (referrer) params.set('referrer', referrer);
+  if (filename) params.set('filename', filename);
+  
+  const protocolUrl = `${PROTOCOL_NAME}://download?${params.toString()}`;
+  
+  // Open protocol URL in a hidden tab
+  chrome.tabs.create({ url: protocolUrl, active: false }, (tab) => {
+    // Close the tab after a short delay
+    setTimeout(() => {
+      if (tab && tab.id) {
+        chrome.tabs.remove(tab.id, () => {
+          // Ignore errors (tab may already be closed)
+          if (chrome.runtime.lastError) {
+            // Tab was already closed by the protocol handler
+          }
+        });
+      }
+    }, 1000);
+  });
+}
+
+// Send via native messaging (secondary)
 function sendViaNativeMessaging(url, referrer, filename) {
   try {
     chrome.runtime.sendNativeMessage(
@@ -117,63 +148,59 @@ function sendViaNativeMessaging(url, referrer, filename) {
       },
       (response) => {
         if (chrome.runtime.lastError) {
-          console.error('Native messaging error:', chrome.runtime.lastError);
           isAppConnected = false;
-          // Fallback to custom protocol
-          sendViaCustomProtocol(url, referrer, filename);
+          nativeMessagingPort = null;
         } else {
-          console.log('Download sent via native messaging:', response);
           isAppConnected = true;
+          console.log('Download sent via native messaging:', response);
         }
       }
     );
   } catch (error) {
-    console.error('Failed to send via native messaging:', error);
-    sendViaCustomProtocol(url, referrer, filename);
+    isAppConnected = false;
+    nativeMessagingPort = null;
   }
-}
-
-// Send via custom protocol (fallback)
-function sendViaCustomProtocol(url, referrer, filename) {
-  // Encode download info in URL
-  const params = new URLSearchParams({
-    url: url,
-    referrer: referrer || '',
-    filename: filename || ''
-  });
-  
-  const protocolUrl = `afkdunld://download?${params.toString()}`;
-  
-  // Try to open the protocol URL
-  chrome.tabs.create({ url: protocolUrl, active: false }, (tab) => {
-    // Close the tab after a short delay
-    setTimeout(() => {
-      if (tab && tab.id) {
-        chrome.tabs.remove(tab.id);
-      }
-    }, 500);
-  });
 }
 
 // Check if desktop app is connected
 function checkAppConnection() {
+  // Try custom protocol first - open afk-dunld://ping and see if it works
+  // Since we can't directly detect protocol success, we use a heuristic:
+  // Try native messaging, if that fails, assume protocol might work
+  
   try {
     chrome.runtime.sendNativeMessage(
       NATIVE_APP_NAME,
       { type: 'ping' },
       (response) => {
         if (chrome.runtime.lastError) {
-          isAppConnected = false;
-          console.log('Desktop app not connected via native messaging');
+          // Native messaging failed, but custom protocol might still work
+          // We'll optimistically assume the app is connected if it's installed
+          console.log('Native messaging not available, using custom protocol');
+          isAppConnected = true; // Assume connected via protocol
         } else {
           isAppConnected = true;
-          console.log('Desktop app connected:', response);
+          console.log('Desktop app connected via native messaging:', response);
         }
+        // Notify all tabs of connection status
+        broadcastConnectionStatus();
       }
     );
   } catch (error) {
-    isAppConnected = false;
+    // Native messaging not available, but custom protocol might work
+    isAppConnected = true; // Optimistic - assume protocol works
+    broadcastConnectionStatus();
   }
+}
+
+// Broadcast connection status to all tabs
+function broadcastConnectionStatus() {
+  chrome.runtime.sendMessage({
+    type: 'connection_status',
+    connected: isAppConnected
+  }).catch(() => {
+    // No listeners, ignore
+  });
 }
 
 // Update extension badge
@@ -202,10 +229,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkAppConnection();
     setTimeout(() => {
       sendResponse({ connected: isAppConnected });
-    }, 100);
+    }, 200);
     return true; // Keep channel open for async response
   } else if (request.type === 'send_download') {
     sendToDesktopApp(request.url, request.referrer, request.filename);
+    sendResponse({ success: true });
+  } else if (request.type === 'open_app') {
+    // Open the desktop app via custom protocol
+    chrome.tabs.create({ url: `${PROTOCOL_NAME}://open`, active: false }, (tab) => {
+      setTimeout(() => {
+        if (tab && tab.id) {
+          chrome.tabs.remove(tab.id);
+        }
+      }, 1000);
+    });
     sendResponse({ success: true });
   }
   
@@ -215,4 +252,4 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Periodic connection check
 setInterval(() => {
   checkAppConnection();
-}, 30000); // Check every 30 seconds
+}, 30000);

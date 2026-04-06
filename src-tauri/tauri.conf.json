@@ -35,7 +35,7 @@
     "deepLink": {
       "mobile": [],
       "desktop": {
-        "schemes": ["afkdunld"]
+        "schemes": ["afk-dunld"]
       }
     }
   },

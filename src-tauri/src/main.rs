@@ -11,8 +11,28 @@ mod utils;
 mod events;
 
 use tauri::{Manager, Emitter};
+use tauri_plugin_deep_link::DeepLinkExt;
 use state::app_state::AppState;
 use url::Url;
+
+fn setup_crash_logging() {
+    std::panic::set_hook(Box::new(|panic_info| {
+        let log_dir = dirs::config_local_dir()
+            .unwrap_or_default()
+            .join("com.ankit.afk-dunld");
+        let _ = std::fs::create_dir_all(&log_dir);
+        let log_file = log_dir.join("crash.log");
+        let msg = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            format!("PANIC at {:?}:\n{}\n", panic_info.location(), s)
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            format!("PANIC at {:?}:\n{}\n", panic_info.location(), s)
+        } else {
+            format!("PANIC at {:?}:\nUnknown panic\n", panic_info.location())
+        };
+        let _ = std::fs::write(&log_file, &msg);
+        eprintln!("{}", msg);
+    }));
+}
 
 // Handle deep link protocol from browser extensions
 async fn handle_deep_link(
@@ -80,8 +100,11 @@ async fn handle_deep_link(
 }
 
 fn main() {
+    // Setup crash logging before anything else
+    setup_crash_logging();
+
     tracing_subscriber::fmt()
-        .with_env_filter("super_downloader=debug")
+        .with_env_filter("afk_dunld=debug")
         .init();
 
     // Check if running in native messaging mode
@@ -175,34 +198,83 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
-        .plugin(tauri_plugin_single_instance::init(|_app, _args, _cwd| {}))
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            // When another instance tries to start, bring the existing window to front
+            tracing::info!("Another instance tried to start, focusing existing window");
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             // Get app data directory
             let app_data_dir = app
                 .path()
                 .app_data_dir()
-                .expect("Failed to get app data directory");
+                .map_err(|e| {
+                    tracing::error!("Failed to get app data directory: {}", e);
+                    format!("Failed to get app data directory: {}", e)
+                })?;
 
             let app_handle = app.handle().clone();
             let app_state = tauri::async_runtime::block_on(async {
-                AppState::new(app_data_dir, &app_handle).await.expect("Failed to initialize app state")
-            });
+                AppState::new(app_data_dir, &app_handle).await.map_err(|e| {
+                    tracing::error!("Failed to initialize app state: {}", e);
+                    format!("Failed to initialize app state: {}", e)
+                })
+            })?;
 
             app.manage(app_state.clone());
 
-            // Setup system tray
-            services::tray_service::setup_tray(app)?;
+            // Setup system tray - non-fatal, app can run without tray
+            if let Err(e) = services::tray_service::setup_tray(app) {
+                tracing::warn!("System tray setup failed (app will continue without tray): {}", e);
+            }
 
             // Setup deep link handler for browser extension protocol (Tauri v2)
-            // Note: Deep link setup is simplified for now
-            // TODO: Implement proper deep link handling when needed
-            #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
-            {
-                tracing::info!("Deep link support available (implementation pending)");
-                // The tauri-plugin-deep-link v2 API requires registration in tauri.conf.json
-                // and uses event listeners instead of programmatic registration
+            #[cfg(desktop)]
+            app.deep_link().register("afk-dunld")?;
+
+            // Check if app was started via deep link
+            if let Some(urls) = app.deep_link().get_current().ok().flatten() {
+                let handle = app.handle().clone();
+                for url in urls {
+                    tracing::info!("App started via deep link: {}", url);
+                    let handle = handle.clone();
+                    tokio::spawn(async move {
+                        let state = handle.state::<AppState>();
+                        if let Err(e) = handle_deep_link(url.to_string(), handle.clone(), state.inner().clone()).await {
+                            tracing::error!("Deep link handler error: {}", e);
+                        }
+                    });
+                }
             }
+
+            // Listen for deep links while app is running
+            let app_handle_for_deep_links = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                for url in event.urls() {
+                    tracing::info!("Deep link received while running: {}", url);
+                    let handle = app_handle_for_deep_links.clone();
+                    tokio::spawn(async move {
+                        let state = handle.state::<AppState>();
+                        if let Err(e) = handle_deep_link(url.to_string(), handle.clone(), state.inner().clone()).await {
+                            tracing::error!("Deep link handler error: {}", e);
+                        }
+                    });
+                }
+            });
+
+            // Auto-install native messaging host for browser extensions
+            let app_handle_for_nm = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(e) = commands::browser_commands::install_browser_extension_support(app_handle_for_nm).await {
+                    tracing::warn!("Native messaging auto-install failed (extension will use protocol fallback): {}", e);
+                } else {
+                    tracing::info!("Native messaging host installed successfully");
+                }
+            });
 
             // Start clipboard monitor
             let handle = app.handle().clone();

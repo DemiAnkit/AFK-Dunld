@@ -73,15 +73,24 @@ impl AppState {
         let (scheduler, receiver) = Scheduler::new();
         let scheduler = Arc::new(scheduler);
         
-        // Initialize torrent client with librqbit
+        // Initialize torrent client with librqbit (optional - only when feature is enabled)
+        #[cfg(feature = "librqbit-enabled")]
         let torrent_config = TorrentConfig {
             download_dir: download_dir.clone(),
             ..Default::default()
         };
+        #[cfg(feature = "librqbit-enabled")]
         let torrent_client = LibrqbitTorrentClient::new(torrent_config)
             .await
             .map_err(|e| crate::utils::error::DownloadError::NetworkError(format!("Failed to create torrent client: {}", e)))?;
+        #[cfg(feature = "librqbit-enabled")]
         let torrent_client = Arc::new(torrent_client);
+        
+        // Use a placeholder when librqbit is disabled
+        #[cfg(not(feature = "librqbit-enabled"))]
+        let torrent_client: Arc<LibrqbitTorrentClient> = Arc::new(
+            LibrqbitTorrentClient::new_disabled()
+        );
 
         // Initialize logger
         let logger = Arc::new(Logger::new());
@@ -100,9 +109,11 @@ impl AppState {
         let ytdlp_manager = YtdlpManager::new(app_handle)
             .map_err(|e| crate::utils::error::DownloadError::Unknown(e.to_string()))?;
         
-        // Initialize yt-dlp (extract bundled binary)
-        ytdlp_manager.initialize(app_handle).await
-            .map_err(|e| crate::utils::error::DownloadError::Unknown(e.to_string()))?;
+        // Initialize yt-dlp (extract bundled binary) - non-fatal, YouTube downloads will be unavailable if this fails
+        if let Err(e) = ytdlp_manager.initialize(app_handle).await {
+            tracing::warn!("yt-dlp initialization failed (YouTube downloads will be unavailable): {}", e);
+            // Continue without yt-dlp instead of crashing the entire app
+        }
         
         let ytdlp_manager = Arc::new(ytdlp_manager);
 

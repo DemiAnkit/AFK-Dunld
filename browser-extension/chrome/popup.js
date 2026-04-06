@@ -1,59 +1,63 @@
 // AFK-Dunld Browser Extension - Popup Script
 
-// DOM elements
-const statusDot = document.getElementById('statusDot');
-const statusText = document.getElementById('statusText');
-const downloadsList = document.getElementById('downloadsList');
-const interceptToggle = document.getElementById('interceptToggle');
-const openAppBtn = document.getElementById('openAppBtn');
-const clearBtn = document.getElementById('clearBtn');
-
 // Initialize popup
 async function init() {
+  // DOM elements - must be accessed after DOMContentLoaded
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const downloadsList = document.getElementById('downloadsList');
+  const interceptToggle = document.getElementById('interceptToggle');
+  const openAppBtn = document.getElementById('openAppBtn');
+  const clearBtn = document.getElementById('clearBtn');
+
   // Load settings
   const settings = await chrome.storage.sync.get({
     interceptDownloads: true,
     sizeThreshold: 1
   });
   
-  interceptToggle.checked = settings.interceptDownloads;
+  if (interceptToggle) {
+    interceptToggle.checked = settings.interceptDownloads;
+  }
   
   // Check connection status
-  checkConnection();
+  checkConnection(statusDot, statusText);
   
   // Load recent downloads
-  loadDownloads();
+  loadDownloads(downloadsList);
   
   // Setup event listeners
-  setupEventListeners();
+  setupEventListeners(interceptToggle, openAppBtn, clearBtn, downloadsList);
 }
 
 // Check connection to desktop app
-async function checkConnection() {
+function checkConnection(statusDot, statusText) {
   chrome.runtime.sendMessage({ type: 'check_connection' }, (response) => {
     if (response && response.connected) {
-      statusDot.classList.remove('disconnected');
-      statusText.textContent = 'Connected to AFK-Dunld';
+      if (statusDot) statusDot.classList.remove('disconnected');
+      if (statusText) statusText.textContent = 'Connected to AFK-Dunld';
     } else {
-      statusDot.classList.add('disconnected');
-      statusText.textContent = 'Desktop app not running';
+      if (statusDot) statusDot.classList.add('disconnected');
+      if (statusText) statusText.textContent = 'Desktop app not running';
     }
   });
 }
 
 // Load recent downloads
-async function loadDownloads() {
+function loadDownloads(downloadsList) {
   chrome.runtime.sendMessage({ type: 'get_downloads' }, (response) => {
     if (response && response.downloads && response.downloads.length > 0) {
-      displayDownloads(response.downloads);
+      displayDownloads(response.downloads, downloadsList);
     } else {
-      downloadsList.innerHTML = '<div class="empty-state">No recent downloads</div>';
+      if (downloadsList) {
+        downloadsList.innerHTML = '<div class="empty-state">No recent downloads</div>';
+      }
     }
   });
 }
 
 // Display downloads in the list
-function displayDownloads(downloads) {
+function displayDownloads(downloads, downloadsList) {
   // Sort by timestamp (newest first)
   downloads.sort((a, b) => b.timestamp - a.timestamp);
   
@@ -104,43 +108,43 @@ function escapeHtml(text) {
 }
 
 // Setup event listeners
-function setupEventListeners() {
+function setupEventListeners(interceptToggle, openAppBtn, clearBtn, downloadsList) {
   // Intercept toggle
-  interceptToggle.addEventListener('change', async () => {
-    await chrome.storage.sync.set({
-      interceptDownloads: interceptToggle.checked
+  if (interceptToggle) {
+    interceptToggle.addEventListener('change', async () => {
+      await chrome.storage.sync.set({
+        interceptDownloads: interceptToggle.checked
+      });
     });
-  });
+  }
   
   // Open app button
-  openAppBtn.addEventListener('click', () => {
-    // Try to open the app via custom protocol
-    chrome.tabs.create({ 
-      url: 'afkdunld://open',
-      active: false 
-    }, (tab) => {
-      // Close the tab after a short delay
-      setTimeout(() => {
-        if (tab && tab.id) {
-          chrome.tabs.remove(tab.id);
-        }
-      }, 500);
+  if (openAppBtn) {
+    openAppBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'open_app' });
     });
-  });
+  }
   
   // Clear button
-  clearBtn.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'clear_downloads' }, () => {
-      downloadsList.innerHTML = '<div class="empty-state">No recent downloads</div>';
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      chrome.runtime.sendMessage({ type: 'clear_downloads' }, () => {
+        if (downloadsList) {
+          downloadsList.innerHTML = '<div class="empty-state">No recent downloads</div>';
+        }
+      });
     });
-  });
+  }
 }
 
 // Refresh data periodically
 setInterval(() => {
-  checkConnection();
-  loadDownloads();
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const downloadsList = document.getElementById('downloadsList');
+  checkConnection(statusDot, statusText);
+  loadDownloads(downloadsList);
 }, 5000);
 
-// Initialize when popup opens
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', init);

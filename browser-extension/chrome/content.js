@@ -23,9 +23,11 @@ function detectDownloadLinks() {
   
   links.forEach(link => {
     const href = link.href.toLowerCase();
-    const isDownloadLink = downloadExtensions.some(ext => 
-      href.includes(`.${ext}`) || href.includes(`download`)
+    // Check if URL ends with a downloadable extension OR contains 'download'
+    const hasExtension = downloadExtensions.some(ext => 
+      href.endsWith(`.${ext}`) || href.includes(`.${ext}?`) || href.includes(`.${ext}#`)
     );
+    const isDownloadLink = hasExtension || href.includes('download');
     
     if (isDownloadLink && !link.hasAttribute('data-afkdunld')) {
       link.setAttribute('data-afkdunld', 'detected');
@@ -36,113 +38,85 @@ function detectDownloadLinks() {
   return downloadLinkCount;
 }
 
-// Add custom context menu hint for download links
-document.addEventListener('contextmenu', (e) => {
-  const target = e.target.closest('a[href], video, audio, img');
-  if (target) {
-    const url = target.href || target.src || target.currentSrc;
-    if (url) {
-      // Store the URL for context menu action
-      sessionStorage.setItem('afkdunld_context_url', url);
-    }
-  }
-});
-
-// Listen for click events on download links
-document.addEventListener('click', async (e) => {
-  // Check if Ctrl/Cmd + Click (open download manager)
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-    const target = e.target.closest('a[href]');
-    if (target && target.hasAttribute('data-afkdunld')) {
-      e.preventDefault();
-      
-      // Send to extension background
-      chrome.runtime.sendMessage({
-        type: 'send_download',
-        url: target.href,
-        referrer: document.location.href,
-        filename: target.download || target.textContent.trim()
-      });
-      
-      // Visual feedback
-      const originalText = target.textContent;
-      target.textContent = '✓ Sent to AFK-Dunld';
-      target.style.color = '#4CAF50';
-      
-      setTimeout(() => {
-        target.textContent = originalText;
-        target.style.color = '';
-      }, 2000);
-    }
-  }
-}, true);
-
-// Detect YouTube videos
-function detectYouTubeVideo() {
-  if (window.location.hostname.includes('youtube.com') || 
-      window.location.hostname.includes('youtu.be')) {
-    
-    const videoId = new URLSearchParams(window.location.search).get('v') ||
-                    window.location.pathname.split('/').pop();
-    
-    if (videoId) {
-      // Add download button to YouTube player
-      addYouTubeDownloadButton(videoId);
-    }
-  }
-}
-
-// Add download button to YouTube
-function addYouTubeDownloadButton(videoId) {
-  // Check if button already exists
-  if (document.querySelector('.afkdunld-yt-button')) {
+// Intercept ALL clicks on download links (not just Ctrl+Shift)
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('a[href]');
+  if (!target) return;
+  
+  const href = target.href;
+  if (!href) return;
+  
+  // Skip if it's already a protocol URL
+  if (href.startsWith('afk-dunld://') || href.startsWith('javascript:') || href.startsWith('#')) {
     return;
   }
   
-  // Wait for YouTube UI to load
-  const checkInterval = setInterval(() => {
-    const controls = document.querySelector('.ytp-right-controls');
-    if (controls) {
-      clearInterval(checkInterval);
-      
-      const button = document.createElement('button');
-      button.className = 'afkdunld-yt-button ytp-button';
-      button.innerHTML = '↓ AFK-Dunld';
-      button.title = 'Download with AFK-Dunld';
-      button.style.cssText = `
-        font-size: 14px;
-        padding: 0 8px;
-        margin: 0 4px;
-        cursor: pointer;
-        background: transparent;
-        border: none;
-        color: white;
-      `;
-      
-      button.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const videoUrl = window.location.href;
-        chrome.runtime.sendMessage({
-          type: 'send_download',
-          url: videoUrl,
-          referrer: document.location.href,
-          filename: document.title
-        });
-        
-        button.innerHTML = '✓ Sent';
-        button.style.color = '#4CAF50';
-        setTimeout(() => {
-          button.innerHTML = '↓ AFK-Dunld';
-          button.style.color = 'white';
-        }, 2000);
-      });
-      
-      controls.insertBefore(button, controls.firstChild);
-    }
-  }, 500);
+  // Check if it looks like a download link
+  const isDownloadLink = target.hasAttribute('data-afkdunld') ||
+    target.hasAttribute('download') ||
+    href.match(/\.(zip|rar|7z|tar|gz|exe|msi|dmg|deb|rpm|apk|mp4|mkv|avi|mov|webm|mp3|flac|wav|aac|pdf|doc|docx|xls|xlsx|ppt|pptx|jpg|jpeg|png|gif|webp|svg|bmp|iso|img|bin)(\?|#|$)/i) ||
+    href.toLowerCase().includes('download');
   
-  // Stop trying after 10 seconds
-  setTimeout(() => clearInterval(checkInterval), 10000);
+  if (!isDownloadLink) return;
+  
+  // Only intercept if Ctrl/Cmd+Shift is held (user intent to use AFK-Dunld)
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    chrome.runtime.sendMessage({
+      type: 'send_download',
+      url: href,
+      referrer: document.location.href,
+      filename: target.download || target.textContent.trim() || extractFilename(href)
+    });
+    
+    // Visual feedback
+    const originalText = target.textContent;
+    const originalBg = target.style.background;
+    target.textContent = '\u2713 Sent to AFK-Dunld';
+    target.style.color = '#4CAF50';
+    target.style.background = '#e8f5e9';
+    
+    setTimeout(() => {
+      target.textContent = originalText;
+      target.style.color = '';
+      target.style.background = originalBg;
+    }, 2000);
+  }
+}, true);
+
+// Extract filename from URL
+function extractFilename(url) {
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    const filename = pathname.substring(pathname.lastIndexOf('/') + 1);
+    return filename || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+// Add AFK-Dunld indicator to download links
+function addDownloadIndicators() {
+  const links = document.querySelectorAll('a[data-afkdunld="detected"]');
+  links.forEach(link => {
+    if (!link.querySelector('.afkdunld-indicator')) {
+      const indicator = document.createElement('span');
+      indicator.className = 'afkdunld-indicator';
+      indicator.textContent = '\u2193';
+      indicator.title = 'Ctrl+Click to download with AFK-Dunld';
+      indicator.style.cssText = `
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 10px;
+        color: #667eea;
+        cursor: pointer;
+      `;
+      link.appendChild(indicator);
+    }
+  });
 }
 
 // Initialize on page load
@@ -154,11 +128,12 @@ if (document.readyState === 'loading') {
 
 function init() {
   detectDownloadLinks();
-  detectYouTubeVideo();
+  addDownloadIndicators();
   
   // Re-detect on dynamic content changes
   const observer = new MutationObserver(() => {
     detectDownloadLinks();
+    addDownloadIndicators();
   });
   
   observer.observe(document.body, {

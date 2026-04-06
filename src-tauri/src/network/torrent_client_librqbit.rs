@@ -74,6 +74,13 @@ mod librqbit_stub {
             panic!("librqbit stub - cannot add torrent from URL")
         }
     }
+    
+    // Provide a disabled constructor for the stub
+    impl Session {
+        pub fn new_disabled() -> Self {
+            Session
+        }
+    }
 }
 
 #[cfg(not(feature = "librqbit-enabled"))]
@@ -165,7 +172,7 @@ impl LibrqbitTorrentClient {
         let session = match Self::create_session(&config).await {
             Ok(s) => Some(Arc::new(s)),
             Err(e) => {
-                tracing::warn!("Failed to initialize librqbit session: {}. Torrent features will be limited.", e);
+                tracing::warn!("Failed to create librqbit session: {}, torrent support will be disabled", e);
                 None
             }
         };
@@ -178,6 +185,18 @@ impl LibrqbitTorrentClient {
             web_seed_downloader: Arc::new(WebSeedDownloader::new()),
             config,
         })
+    }
+
+    /// Create a disabled torrent client (when librqbit is not available)
+    pub fn new_disabled() -> Self {
+        Self {
+            session: None,
+            torrents: Arc::new(RwLock::new(HashMap::new())),
+            metadata: Arc::new(RwLock::new(HashMap::new())),
+            advanced_config: Arc::new(RwLock::new(HashMap::new())),
+            web_seed_downloader: Arc::new(WebSeedDownloader::new()),
+            config: TorrentConfig::default(),
+        }
     }
 
     async fn create_session(config: &TorrentConfig) -> Result<librqbit::Session, AppError> {

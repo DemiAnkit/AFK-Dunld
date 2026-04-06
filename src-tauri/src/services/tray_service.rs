@@ -10,53 +10,10 @@ use tauri::image::Image;
 pub fn setup_tray(app: &mut App) -> Result<(), DownloadError> {
     tracing::info!("Setting up system tray...");
     
-    // Load tray icon - try multiple paths for dev and production
-    let icon_path = if let Ok(exe_path) = std::env::current_exe() {
-        let exe_dir = exe_path.parent().unwrap();
-        
-        // Try production path (next to exe)
-        let prod_path = exe_dir.join("icons").join("32x32.png");
-        if prod_path.exists() {
-            tracing::info!("Using production icon path: {:?}", prod_path);
-            prod_path
-        } else {
-            // Try dev path - go up from target/debug to workspace root
-            let workspace_root = exe_dir
-                .parent() // target
-                .and_then(|p| p.parent()) // workspace root
-                .unwrap_or(exe_dir);
-            
-            // First try: workspace_root/src-tauri/icons/32x32.png
-            let dev_path = workspace_root.join("src-tauri").join("icons").join("32x32.png");
-            if dev_path.exists() {
-                tracing::info!("Using dev icon path: {:?}", dev_path);
-                dev_path
-            } else {
-                // Second try: if we're already in src-tauri, just use icons/32x32.png
-                let local_path = workspace_root.join("icons").join("32x32.png");
-                if local_path.exists() {
-                    tracing::info!("Using local icon path: {:?}", local_path);
-                    local_path
-                } else {
-                    // Last resort: embedded icon bytes
-                    tracing::warn!("Icon file not found, trying fallback paths");
-                    tracing::warn!("Tried prod_path: {:?}", prod_path);
-                    tracing::warn!("Tried dev_path: {:?}", dev_path);
-                    tracing::warn!("Tried local_path: {:?}", local_path);
-                    dev_path // Will fail with proper error message
-                }
-            }
-        }
-    } else {
-        std::path::PathBuf::from("src-tauri/icons/32x32.png")
-    };
+    // Use embedded icon bytes - works in both dev and production
+    let icon_bytes = include_bytes!("../../icons/icon.ico");
     
-    tracing::info!("Loading tray icon from: {:?}", icon_path);
-    
-    let icon_bytes = std::fs::read(&icon_path)
-        .map_err(|e| DownloadError::Unknown(format!("Failed to read tray icon from {:?}: {}", icon_path, e)))?;
-    
-    let icon_image = image::load_from_memory(&icon_bytes)
+    let icon_image = image::load_from_memory(icon_bytes)
         .map_err(|e| DownloadError::Unknown(format!("Failed to decode tray icon: {}", e)))?;
     
     let rgba_data = icon_image.to_rgba8();

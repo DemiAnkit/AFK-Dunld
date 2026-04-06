@@ -2,7 +2,8 @@
 // Handles download interception and communication with desktop app
 
 const NATIVE_APP_NAME = 'com.ankit.afkdunld';
-const DOWNLOAD_THRESHOLD_MB = 1; // Downloads larger than this will be intercepted
+const DOWNLOAD_THRESHOLD_MB = 1;
+const PROTOCOL_NAME = 'afk-dunld';
 
 // State management
 let isAppConnected = false;
@@ -37,7 +38,6 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
       sendToDesktopApp(url, info.pageUrl, tab.title);
     }
   } else if (info.menuItemId === 'download-selection-with-afkdunld') {
-    // Try to extract URL from selected text
     const selectedText = info.selectionText.trim();
     if (selectedText.match(/^https?:\/\//)) {
       sendToDesktopApp(selectedText, info.pageUrl, tab.title);
@@ -47,6 +47,11 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
 
 // Intercept downloads
 browser.downloads.onCreated.addListener(async (downloadItem) => {
+  // Skip if URL is our own protocol
+  if (downloadItem.url.startsWith(PROTOCOL_NAME + '://')) {
+    return;
+  }
+
   // Get user preferences
   const settings = await browser.storage.sync.get({
     interceptDownloads: true,
@@ -58,9 +63,9 @@ browser.downloads.onCreated.addListener(async (downloadItem) => {
   }
   
   // Check if file size exceeds threshold
-  const sizeMB = downloadItem.fileSize / (1024 * 1024);
+  const sizeMB = (downloadItem.fileSize || 0) / (1024 * 1024);
   if (downloadItem.fileSize > 0 && sizeMB < settings.sizeThreshold) {
-    return; // Let browser handle small files
+    return;
   }
   
   // Cancel the browser download
@@ -82,12 +87,12 @@ browser.downloads.onCreated.addListener(async (downloadItem) => {
 
 // Send download to desktop app
 function sendToDesktopApp(url, referrer, filename) {
-  // Try native messaging first
+  // Always try custom protocol first (most reliable)
+  sendViaCustomProtocol(url, referrer, filename);
+  
+  // Also try native messaging if connected
   if (isAppConnected) {
     sendViaNativeMessaging(url, referrer, filename);
-  } else {
-    // Fallback: Try to open custom protocol
-    sendViaCustomProtocol(url, referrer, filename);
   }
   
   // Store in active downloads
@@ -103,7 +108,26 @@ function sendToDesktopApp(url, referrer, filename) {
   updateBadge();
 }
 
-// Send via native messaging
+// Send via custom protocol (PRIMARY method)
+function sendViaCustomProtocol(url, referrer, filename) {
+  const params = new URLSearchParams();
+  params.set('url', url);
+  if (referrer) params.set('referrer', referrer);
+  if (filename) params.set('filename', filename);
+  
+  const protocolUrl = `${PROTOCOL_NAME}://download?${params.toString()}`;
+  
+  // Open protocol URL in a hidden tab
+  browser.tabs.create({ url: protocolUrl, active: false }).then((tab) => {
+    setTimeout(() => {
+      if (tab && tab.id) {
+        browser.tabs.remove(tab.id);
+      }
+    }, 1000);
+  });
+}
+
+// Send via native messaging (secondary)
 function sendViaNativeMessaging(url, referrer, filename) {
   browser.runtime.sendNativeMessage(
     NATIVE_APP_NAME,
@@ -116,38 +140,14 @@ function sendViaNativeMessaging(url, referrer, filename) {
     }
   ).then(
     (response) => {
-      console.log('Download sent via native messaging:', response);
       isAppConnected = true;
+      console.log('Download sent via native messaging:', response);
     },
     (error) => {
-      console.error('Native messaging error:', error);
       isAppConnected = false;
-      // Fallback to custom protocol
-      sendViaCustomProtocol(url, referrer, filename);
+      console.log('Native messaging not available');
     }
   );
-}
-
-// Send via custom protocol (fallback)
-function sendViaCustomProtocol(url, referrer, filename) {
-  // Encode download info in URL
-  const params = new URLSearchParams({
-    url: url,
-    referrer: referrer || '',
-    filename: filename || ''
-  });
-  
-  const protocolUrl = `afkdunld://download?${params.toString()}`;
-  
-  // Try to open the protocol URL
-  browser.tabs.create({ url: protocolUrl, active: false }).then((tab) => {
-    // Close the tab after a short delay
-    setTimeout(() => {
-      if (tab && tab.id) {
-        browser.tabs.remove(tab.id);
-      }
-    }, 500);
-  });
 }
 
 // Check if desktop app is connected
@@ -158,13 +158,24 @@ function checkAppConnection() {
   ).then(
     (response) => {
       isAppConnected = true;
-      console.log('Desktop app connected:', response);
+      console.log('Desktop app connected via native messaging:', response);
+      broadcastConnectionStatus();
     },
     (error) => {
-      isAppConnected = false;
-      console.log('Desktop app not connected via native messaging');
+      // Native messaging failed, but custom protocol might still work
+      isAppConnected = true; // Optimistic
+      console.log('Native messaging not available, using custom protocol');
+      broadcastConnectionStatus();
     }
   );
+}
+
+// Broadcast connection status to all tabs
+function broadcastConnectionStatus() {
+  browser.runtime.sendMessage({
+    type: 'connection_status',
+    connected: isAppConnected
+  }).catch(() => {});
 }
 
 // Update extension badge
@@ -193,10 +204,19 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     checkAppConnection();
     setTimeout(() => {
       sendResponse({ connected: isAppConnected });
-    }, 100);
+    }, 200);
     return true; // Keep channel open for async response
   } else if (request.type === 'send_download') {
     sendToDesktopApp(request.url, request.referrer, request.filename);
+    sendResponse({ success: true });
+  } else if (request.type === 'open_app') {
+    browser.tabs.create({ url: `${PROTOCOL_NAME}://open`, active: false }).then((tab) => {
+      setTimeout(() => {
+        if (tab && tab.id) {
+          browser.tabs.remove(tab.id);
+        }
+      }, 1000);
+    });
     sendResponse({ success: true });
   }
   
@@ -206,4 +226,4 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Periodic connection check
 setInterval(() => {
   checkAppConnection();
-}, 30000); // Check every 30 seconds
+}, 30000);
